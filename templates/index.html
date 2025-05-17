@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2>Client List</h2>
+{% if clients %}
+    <table>
+        <thead>
+            <tr>
+                <th>Client Name</th>
+                <th>Contact Number</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for client in clients %}
+            <tr>
+                <td>{{ client.name }}</td>
+                <td>{{ client.contact_number if client.contact_number else 'N/A' }}</td>
+                
+                {# ... inside the clients table ... #}
+                <td class="no-print">
+                    <a href="{{ url_for('client_ledger', client_id=client.id) }}">View Ledger</a> |
+                    <a href="{{ url_for('add_transaction', client_id=client.id) }}">Add Transaction</a> |
+                    <a href="{{ url_for('edit_client', client_id=client.id) }}">Edit</a>
+                    {% if current_user.is_admin %} {# Only show delete to admins #}
+                    | <form method="post" action="{{ url_for('delete_client', client_id=client.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete client {{ client.name }}? This cannot be undone if they have no transactions.');">
+                        <button type="submit" class="link-button delete-button">Delete</button>
+                    </form>
+                    {% endif %}
+                </td>
+{# ... #}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No clients found. <a href="{{ url_for('add_client') }}">Add one now!</a></p>
+{% endif %}
+
+<p><a href="{{ url_for('add_client') }}" class="button">Add New Client</a></p>
+{% endblock %}

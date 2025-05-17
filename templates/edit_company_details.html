@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Edit Company Details{% endblock %}
+{% block content %}
+    <h2>Edit Company Details</h2>
+    <form method="post">
+        <div>
+            <label for="company_name">Company Name:</label>
+            <input type="text" name="company_name" id="company_name" value="{{ company_info.company_name if company_info else '' }}">
+        </div>
+        <div>
+            <label for="monogram_path">Monogram Path (e.g., img/logo.png):</label>
+            <input type="text" name="monogram_path" id="monogram_path" value="{{ company_info.monogram_path if company_info else '' }}">
+        </div>
+        <div>
+            <label for="address">Address:</label>
+            <textarea name="address" id="address">{{ company_info.address if company_info else '' }}</textarea>
+        </div>
+        <div>
+            <label for="contact_info">Contact Info:</label>
+            <input type="text" name="contact_info" id="contact_info" value="{{ company_info.contact_info if company_info else '' }}">
+        </div>
+        <button type="submit">Save Details</button>
+    </form>
+{% endblock %}

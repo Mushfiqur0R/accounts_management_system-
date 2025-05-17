@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Client Payment Summary{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <div class="print-header">
+        {% if company_details and company_details.monogram_path %}
+            <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Company Monogram" class="monogram">
+        {% endif %}
+        <h2>{{ company_details.company_name if company_details else "Company Name" }}</h2>
+        <p>{{ company_details.address if company_details else "Company Address" }}</p>
+        <p>{{ company_details.contact_info if company_details else "Contact Info" }}</p>
+        <hr>
+        <h3>Monthly Client Payment Summary</h3>
+        <p><strong>Period:</strong>
+            {% if filter_month %}{{ month_map[filter_month] }}{% endif %}
+            {% if filter_year %}{{ filter_year }}{% else %}All Time{% endif %}
+        </p>
+    </div>
+
+    <form method="get" action="{{ url_for('monthly_client_summary_report') }}" class="filter-form no-print">
+        <label for="filter_year">Year:</label>
+        <select name="filter_year" id="filter_year">
+            <option value="">All Years</option>
+            {% for yr in distinct_years %}
+                <option value="{{ yr.year }}" {% if yr.year == filter_year %}selected{% endif %}>{{ yr.year }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="filter_month">Month:</label>
+        <select name="filter_month" id="filter_month">
+            <option value="">All Months</option>
+            {% for month_num, month_name in month_map.items() %}
+                <option value="{{ month_num }}" {% if month_num == filter_month %}selected{% endif %}>{{ month_name }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">Filter</button>
+        <button type="button" onclick="window.location.href='{{ url_for('monthly_client_summary_report') }}'">Clear Filters</button>
+    </form>
+
+    {% if summary_data %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Month</th>
+                    <th>Client Name</th>
+                    <th style="text-align:right;">Total Debit</th>
+                    <th style="text-align:right;">Total Credit</th>
+                    <th style="text-align:right;">Net Change (Dr - Cr)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in summary_data %}
+                <tr>
+                    <td>{{ item.year }}</td>
+                    <td>{{ month_map[item.month] }}</td>
+                    <td><a href="{{ url_for('client_ledger', client_id=item.client_id, start_date=item.year~'-'~item.month~'-01', end_date=item.year~'-'~item.month~'-'~(31 if item.month in ['01','03','05','07','08','10','12'] else 30 if item.month in ['04','06','09','11'] else 29 if item.year|int % 4 == 0 and item.month == '02' else 28))}}">{{ item.client_name }}</a></td>
+                    <td style="text-align:right;">{{ "%.2f"|format(item.total_debit) }}</td>
+                    <td style="text-align:right;">{{ "%.2f"|format(item.total_credit) }}</td>
+                    <td style="text-align:right;">{{ "%.2f"|format(item.net_change) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="text-align:right;"><strong>Grand Totals:</strong></td>
+                    <td style="text-align:right;"><strong>{{ "%.2f"|format(grand_total_debit) }}</strong></td>
+                    <td style="text-align:right;"><strong>{{ "%.2f"|format(grand_total_credit) }}</strong></td>
+                    <td style="text-align:right;"><strong>{{ "%.2f"|format(grand_total_net_change) }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    {% else %}
+        <p>No payment summary data found for the selected criteria.</p>
+    {% endif %}
+
+    <div class="no-print">
+        <button onclick="printReport()">Print Report</button>
+        <p><a href="{{ url_for('index') }}">Back to Home</a></p>
+    </div>
+
+    <div class="print-footer">
+        <p>Printed on: {{ "now"|datetimeformat('%Y-%m-%d %H:%M:%S') }}</p>
+        {% if company_details %} {# Added this check for robustness #}
+        <p>{{ company_details.company_name if company_details.company_name else "Company Name" }} - {{ company_details.address if company_details.address else "Address" }} - {{ company_details.contact_info if company_details.contact_info else "Contact" }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

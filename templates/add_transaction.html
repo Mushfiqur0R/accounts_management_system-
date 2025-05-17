@@ -1,0 +1,64 @@
+{% set form_data = form_data if form_data is defined else {} %}
+
+{% extends "base.html" %}
+
+{% block title %}Add Transaction for {{ client.name }}{% endblock %}
+
+{% block content %}
+<h2>Add Transaction for: {{ client.name }}</h2>
+<p>Contact: {{ client.contact_number if client.contact_number else 'N/A' }}</p>
+
+<form method="post" action="{{ url_for('add_transaction', client_id=client.id) }}">
+    <div>
+        <label for="transaction_date">Date:</label>
+        <input type="date" id="transaction_date" name="transaction_date" value="{{ form_data.transaction_date if form_data else default_date }}" required>
+    </div>
+    <div>
+        <label for="fabrics_type">Fabrics Type:</label>
+        <input type="text" id="fabrics_type" name="fabrics_type" value="{{ form_data.fabrics_type if form_data else '' }}">
+    </div>
+    <div>
+        <label for="design_code">Design Code:</label>
+        <input type="text" id="design_code" name="design_code" value="{{ form_data.design_code if form_data else '' }}">
+    </div>
+    <div>
+        <label for="qty">Qty:</label>
+        <input type="number" step="any" id="qty" name="qty" value="{{ form_data.qty if form_data else '' }}">
+    </div>
+    <div>
+        <label for="transaction_mode">Transaction Mode:</label>
+        <select id="transaction_mode" name="transaction_mode" required>
+            <option value="Cash" {% if form_data and form_data.transaction_mode == 'Cash' %}selected{% endif %}>Cash</option>
+            <option value="Cheque" {% if form_data and form_data.transaction_mode == 'Cheque' %}selected{% endif %}>Cheque</option>
+            <option value="Bank Transfer" {% if form_data and form_data.transaction_mode == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+            <option value="Online" {% if form_data and form_data.transaction_mode == 'Online' %}selected{% endif %}>Online</option>
+            <option value="Other" {% if form_data and form_data.transaction_mode == 'Other' %}selected{% endif %}>Other</option>
+        </select>
+    </div>
+    <div>
+        <label for="narration">Narration:</label>
+        <textarea id="narration" name="narration">{{ form_data.narration if form_data else '' }}</textarea>
+    </div>
+    <div>
+        <label for="chq_no">Chq No.:</label>
+        <input type="text" id="chq_no" name="chq_no" value="{{ form_data.chq_no if form_data else '' }}">
+    </div>
+    <div>
+        <label for="challan_voucher_no">Challan / Voucher No.:</label>
+        <input type="text" id="challan_voucher_no" name="challan_voucher_no" value="{{ form_data.challan_voucher_no if form_data else '' }}">
+    </div>
+    <div>
+        <label for="debit">Debit (Amount Owed by Client):</label>
+        <input type="number" step="0.01" id="debit" name="debit" value="{{ form_data.debit if form_data else '0.00' }}">
+    </div>
+    <div>
+        <label for="credit">Credit (Payment from Client):</label>
+        <input type="number" step="0.01" id="credit" name="credit" value="{{ form_data.credit if form_data else '0.00' }}">
+    </div>
+    <div>
+        <button type="submit">Add Transaction</button>
+    </div>
+</form>
+<p><a href="{{ url_for('client_ledger', client_id=client.id) }}">Back to Ledger for {{ client.name }}</a></p>
+<p><a href="{{ url_for('index') }}">Back to Client List</a></p>
+{% endblock %}

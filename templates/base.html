@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Accounts Management{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        // Simple print function for reports
+        function printReport() {
+            window.print();
+        }
+    </script>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            {% if company_details and company_details.monogram_path %}
+                <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Company Monogram" class="monogram">
+            {% endif %}
+            <h1>{% if company_details %}{{ company_details.company_name }}{% else %}Accounts Management System{% endif %}</h1>
+        </div>
+        <div class="user-info no-print"> {# Added no-print class #}
+            {% if current_user.is_authenticated %}
+                Logged in as: <strong>{{ current_user.username }}</strong>
+            {% endif %}
+        </div>
+        <nav class="no-print">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('index') }}">Home (Clients)</a>
+                {# Regular user links #}
+                <a href="{{ url_for('add_client') }}">Add Client</a>
+                <a href="{{ url_for('view_conveyance_bills') }}">Conveyance Bills</a>
+                <a href="{{ url_for('add_conveyance') }}">Add Conveyance</a>
+                <a href="{{ url_for('monthly_client_summary_report') }}">Monthly Client Summary</a>
+    
+                {% if current_user.is_admin %} {# Admin specific links #}
+                    <a href="{{ url_for('manage_users') }}">Manage Users</a>
+                    <a href="{{ url_for('edit_company_details') }}">Company Settings</a>
+                {% endif %}
+    
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('register') }}">Register</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class=flashes>
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p>© {% if company_details %}{{ company_details.company_name }}{% else %}Your Company{% endif %} - {{_year}}</p>
+        {% if company_details %}
+        <p>{{ company_details.address }} | {{ company_details.contact_info }}</p>
+        {% endif %}
+    </footer>
+</body>
+</html>

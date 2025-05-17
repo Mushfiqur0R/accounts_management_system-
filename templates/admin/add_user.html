@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Add New User (Admin){% endblock %}
+
+{% block content %}
+<h2>Add New User</h2>
+<form method="post" action="{{ url_for('add_user_admin') }}">
+    <div>
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" value="{{ form_data.username if form_data else '' }}" required>
+    </div>
+    <div>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+    </div>
+    <div>
+        <label for="confirm_password">Confirm Password:</label>
+        <input type="password" id="confirm_password" name="confirm_password" required>
+    </div>
+    <div>
+        <input type="checkbox" id="is_admin" name="is_admin" {% if form_data and form_data.is_admin %}checked{% endif %}>
+        <label for="is_admin">Make Admin?</label>
+    </div>
+    <div>
+        <button type="submit">Create User</button>
+    </div>
+</form>
+<p><a href="{{ url_for('manage_users') }}">Back to User List</a></p>
+{% endblock %}

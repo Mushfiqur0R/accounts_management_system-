@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Conveyance Bills{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <div class="print-header">
+        {% if company_details and company_details.monogram_path %}
+            <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Company Monogram" class="monogram">
+        {% endif %}
+        <h2>{{ company_details.company_name if company_details else "Company Name" }}</h2>
+        <p>{{ company_details.address if company_details else "Company Address" }}</p>
+        <p>{{ company_details.contact_info if company_details else "Contact Info" }}</p>
+        <hr>
+        <h3>Daily Conveyance Bills</h3>
+        <p><strong>Period:</strong>
+            {% if filter_date_from %}{{ filter_date_from }}{% else %}Beginning{% endif %}
+            to
+            {% if filter_date_to %}{{ filter_date_to }}{% else %}Current{% endif %}
+        </p>
+        {% if filter_person_name %}<p><strong>Person:</strong> {{ filter_person_name }}</p>{% endif %}
+    </div>
+
+    <form method="get" action="{{ url_for('view_conveyance_bills') }}" class="filter-form no-print">
+        <label for="filter_date_from">From Date:</label>
+        <input type="date" name="filter_date_from" id="filter_date_from" value="{{ filter_date_from }}">
+
+        <label for="filter_date_to">To Date:</label>
+        <input type="date" name="filter_date_to" id="filter_date_to" value="{{ filter_date_to }}">
+
+        <label for="filter_person_name">Person:</label>
+        <input list="person_names" name="filter_person_name" id="filter_person_name" value="{{ filter_person_name }}" placeholder="Type or select person">
+        <datalist id="person_names">
+            {% for person in distinct_persons %}
+                <option value="{{ person.person_name }}">
+            {% endfor %}
+        </datalist>
+
+        <button type="submit">Filter</button>
+        <button type="button" onclick="window.location.href='{{ url_for('view_conveyance_bills') }}'">Clear Filters</button>
+    </form>
+
+    {% if bills %}
+    {# ... in view_conveyance_bills.html ... #}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Person Name</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Purpose</th>
+                <th style="text-align:right;">Amount</th>
+                <th class="no-print">Actions</th> {# New Column #}
+            </tr>
+        </thead>
+        <tbody>
+            {% for bill_item in bills %} {# Renamed bill to bill_item to avoid conflict with bill in edit_conveyance_bill template if passed by mistake #}
+            <tr>
+                <td>{{ bill_item.bill_date }}</td>
+                <td>{{ bill_item.person_name }}</td>
+                <td>{{ bill_item.from_location if bill_item.from_location else '' }}</td>
+                <td>{{ bill_item.to_location if bill_item.to_location else '' }}</td>
+                <td>{{ bill_item.purpose if bill_item.purpose else '' }}</td>
+                <td style="text-align:right;">{{ "%.2f"|format(bill_item.amount) }}</td>
+                <td class="no-print">
+                    <a href="{{ url_for('edit_conveyance_bill', bill_id=bill_item.id) }}">Edit</a>
+                    {% if current_user.is_admin %} {# Only show delete to admins #}
+                    | <form method="post" action="{{ url_for('delete_conveyance_bill', bill_id=bill_item.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this conveyance bill? This cannot be undone.');">
+                        <button type="submit" class="link-button delete-button">Delete</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="5" style="text-align:right;"><strong>Total Amount for Period:</strong></td>
+                <td style="text-align:right;"><strong>{{ "%.2f"|format(total_amount) }}</strong></td>
+                <td class="no-print"></td> {# Empty cell for actions column #}
+            </tr>
+        </tfoot>
+    </table>
+{# ... #}
+    {% else %}
+        <p>No conveyance bills found for the selected criteria.</p>
+    {% endif %}
+
+    <div class="no-print">
+        <a href="{{ url_for('add_conveyance') }}" class="button">Add New Conveyance Bill</a>
+        <button onclick="printReport()">Print Report</button>
+        <p><a href="{{ url_for('index') }}">Back to Home</a></p>
+    </div>
+
+    <div class="print-footer">
+        <p>Printed on: {{ "now"|datetimeformat('%Y-%m-%d %H:%M:%S') }}</p>
+        {% if company_details %} {# Added this check for robustness #}
+        <p>{{ company_details.company_name if company_details.company_name else "Company Name" }} - {{ company_details.address if company_details.address else "Address" }} - {{ company_details.contact_info if company_details.contact_info else "Contact" }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

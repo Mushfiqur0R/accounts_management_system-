@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Users{% endblock %}
+
+{% block content %}
+<h2>Manage Users</h2>
+<p><a href="{{ url_for('add_user_admin') }}" class="button">Add New User</a></p>
+
+{% if users %}
+<table>
+    <thead>
+        <tr>
+            <th>Username</th>
+            <th>Is Admin?</th>
+            <th>Created At</th>
+            <th class="no-print">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user_item in users %} {# Renamed user to user_item to avoid conflict #}
+        <tr>
+            <td>{{ user_item.username }}</td>
+            <td>{{ "Yes" if user_item.is_admin else "No" }}</td>
+            <td>{{ user_item.created_at|datetimeformat('%Y-%m-%d') }}</td>
+            <td class="no-print">
+                {% if user_item.id != current_user.id %} {# Don't allow deleting self directly from list #}
+                <form method="post" action="{{ url_for('delete_user_admin', user_id=user_item.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete user {{ user_item.username }}? This cannot be undone.');">
+                    <button type="submit" class="link-button delete-button">Delete</button>
+                </form>
+                {% else %}
+                (Current User)
+                {% endif %}
+                {# Add Edit User link here later if implemented #}
+                {# | <a href="{{ url_for('edit_user_admin', user_id=user_item.id) }}">Edit</a> #}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No users found (besides potentially yourself).</p>
+{% endif %}
+{% endblock %}

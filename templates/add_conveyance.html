@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Add Conveyance Bill{% endblock %}
+
+{% block content %}
+<h2>Add New Conveyance Bill</h2>
+
+<form method="post" action="{{ url_for('add_conveyance') }}">
+    <div>
+        <label for="bill_date">Date:</label>
+        <input type="date" id="bill_date" name="bill_date" value="{{ form_data.bill_date if form_data else default_date }}" required>
+    </div>
+    <div>
+        <label for="person_name">Person Name:</label>
+        <input type="text" id="person_name" name="person_name" value="{{ form_data.person_name if form_data else '' }}" required>
+    </div>
+    <div>
+        <label for="from_location">From Location:</label>
+        <input type="text" id="from_location" name="from_location" value="{{ form_data.from_location if form_data else '' }}">
+    </div>
+    <div>
+        <label for="to_location">To Location:</label>
+        <input type="text" id="to_location" name="to_location" value="{{ form_data.to_location if form_data else '' }}">
+    </div>
+    <div>
+        <label for="purpose">Purpose:</label>
+        <textarea id="purpose" name="purpose">{{ form_data.purpose if form_data else '' }}</textarea>
+    </div>
+    <div>
+        <label for="amount">Amount:</label>
+        <input type="number" step="0.01" id="amount" name="amount" value="{{ form_data.amount if form_data else '' }}" required>
+    </div>
+    <div>
+        <button type="submit">Add Bill</button>
+    </div>
+</form>
+<p><a href="{{ url_for('view_conveyance_bills') }}">Back to Conveyance Bill List</a></p>
+<p><a href="{{ url_for('index') }}">Back to Home</a></p>
+{% endblock %}

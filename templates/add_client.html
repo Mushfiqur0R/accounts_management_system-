@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Client{% endblock %}
+
+{% block content %}
+<h2>Add New Client</h2>
+<form method="post">
+    <div>
+        <label for="name">Client Name:</label>
+        <input type="text" id="name" name="name" value="{{ name if name else '' }}" required>
+    </div>
+    <div>
+        <label for="contact_number">Contact Number:</label>
+        <input type="text" id="contact_number" name="contact_number" value="{{ contact_number if contact_number else '' }}">
+    </div>
+    <div>
+        <button type="submit">Add Client</button>
+    </div>
+</form>
+<p><a href="{{ url_for('index') }}">Back to Client List</a></p>
+{% endblock %}
