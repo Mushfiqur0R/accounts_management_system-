@@ -180,8 +180,81 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    clients = query_db("SELECT id, name, contact_number FROM clients ORDER BY name ASC")
-    return render_template('index.html', clients=clients)
+    # --- Client Balances and Total Receivables ---
+    clients_with_balances_query = """
+        SELECT
+            c.id,
+            c.name,
+            c.contact_number,
+            COALESCE(SUM(t.debit - t.credit), 0) as balance
+        FROM
+            clients c
+        LEFT JOIN
+            transactions t ON c.id = t.client_id
+        GROUP BY
+            c.id, c.name, c.contact_number
+        ORDER BY
+            balance DESC, c.name ASC;
+    """
+    clients = query_db(clients_with_balances_query)
+    total_receivables = sum(client['balance'] for client in clients)
+
+    # --- Recent Transactions (e.g., last 5) ---
+    recent_transactions_query = """
+        SELECT
+            t.*,
+            c.name as client_name
+        FROM
+            transactions t
+        JOIN
+            clients c ON t.client_id = c.id
+        ORDER BY
+            t.transaction_date DESC, t.id DESC
+        LIMIT 5;
+    """
+    recent_transactions = query_db(recent_transactions_query)
+
+    # --- Conveyance Expenses (e.g., current month) ---
+    current_month_start = datetime.now().strftime('%Y-%m-01')
+    current_month_conveyance_query = """
+        SELECT
+            COALESCE(SUM(amount), 0) as total_monthly_expense
+        FROM
+            conveyance_bills
+        WHERE
+            bill_date >= ?;
+    """
+    # Note: For an exact current month, you'd also need an end date.
+    # For simplicity, this gets expenses from the start of the current month onwards.
+    # A more precise query for *only* the current month:
+    # WHERE bill_date >= date('now', 'start of month') AND bill_date < date('now', 'start of month', '+1 month')
+    # Or using Python to calculate end of month:
+    # current_year = datetime.now().year
+    # current_month_num = datetime.now().month
+    # _, num_days = calendar.monthrange(current_year, current_month_num)
+    # current_month_end = datetime(current_year, current_month_num, num_days).strftime('%Y-%m-%d')
+    # params = [current_month_start, current_month_end]
+    # query = "... WHERE bill_date BETWEEN ? AND ?"
+
+    monthly_conveyance_data = query_db(current_month_conveyance_query, [current_month_start], one=True)
+    current_month_conveyance_total = monthly_conveyance_data['total_monthly_expense'] if monthly_conveyance_data else 0
+
+    # --- Recent Conveyance Bills (e.g., last 5) ---
+    recent_conveyance_bills_query = """
+        SELECT * FROM conveyance_bills
+        ORDER BY bill_date DESC, id DESC
+        LIMIT 5;
+    """
+    recent_conveyance_bills = query_db(recent_conveyance_bills_query)
+
+
+    return render_template('index.html',
+                           clients=clients, # Now includes balance
+                           total_receivables=total_receivables,
+                           recent_transactions=recent_transactions,
+                           current_month_conveyance_total=current_month_conveyance_total,
+                           recent_conveyance_bills=recent_conveyance_bills,
+                           current_month_display=datetime.now().strftime("%B %Y")) # For display
 
 @app.route('/add_client', methods=['GET', 'POST'])
 @login_required

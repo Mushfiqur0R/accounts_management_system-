@@ -1,354 +1,627 @@
-body {
-    font-family: sans-serif;
+/* --- Reset and Base Styles --- */
+:root {
+    --primary-color: #007bff;
+    --primary-hover-color: #0056b3;
+    --sidebar-bg: #2c3e50; /* Darker sidebar */
+    --sidebar-text-color: #ecf0f1;
+    --sidebar-link-hover-bg: #34495e;
+    --sidebar-link-active-bg: #007bff; /* var(--primary-color); */
+    --content-bg: #f4f7f6; /* Lighter content background */
+    --text-color: #333;
+    --border-color: #e0e0e0;
+    --sidebar-width: 260px;
+    --sidebar-width-collapsed: 60px; /* Width when collapsed for icons only */
+    --header-height: 60px;
+}
+
+* {
+    box-sizing: border-box;
     margin: 0;
-    background-color: #f4f4f4;
-    color: #333;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
+    background-color: var(--content-bg);
+    color: var(--text-color);
+    display: flex; /* For page-container to take full height */
+    min-height: 100vh;
+    overflow-x: hidden; /* Prevent horizontal scroll from transitions */
 }
 
-header {
-    background: #333;
-    color: #fff;
-    padding: 1rem 0;
+.page-container {
+    display: flex;
+    flex-grow: 1; /* Take full available space */
+    transition: margin-left 0.3s ease-in-out;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text-color);
+    display: flex;
+    flex-direction: column;
+    position: fixed; /* Fixed position */
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000; /* Above other content */
+    transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
+    overflow-y: auto; /* Scroll for long menus */
+    overflow-x: hidden; /* Hide text when collapsing */
+}
+
+.sidebar-header {
+    padding: 15px;
     text-align: center;
-    border-bottom: #0779e4 3px solid;
+    border-bottom: 1px solid #4a627a; /* Slightly lighter border */
 }
 
-header .logo-container {
+.sidebar-nav ul li.active a { /* Style the <a> tag within the active <li> */
+    background-color: var(--sidebar-link-active-bg); /* Defined in :root, e.g., var(--primary-color) */
+    color: #fff; /* Example: white text on active primary color background */
+    font-weight: 600;
+    border-left: 3px solid #f39c12; /* Example accent border */
+    padding-left: 17px; /* Adjust to account for border if padding was 20px */
+}
+
+/* Ensure active state still looks good when sidebar is collapsed (icon focus) */
+.sidebar.collapsed .sidebar-nav ul li.active a {
+    /* background-color: var(--sidebar-link-active-bg); */ /* Keep background for icon */
+    padding-left: 0; /* Reset padding for centered icon */
+    border-left: none; /* Remove border if it looks odd on collapsed */
+}
+.sidebar.collapsed .sidebar-nav ul li.active a i {
+    color: #f39c12; /* Example: Highlight icon color */
+}
+
+.logo-container-sidebar {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 15px;
+    justify-content: center; /* Center when collapsed */
+    gap: 10px;
 }
 
-header .monogram {
-    max-height: 50px; /* Adjust as needed */
-    max-width: 150px; /* Adjust as needed */
+.sidebar-monogram {
+    max-height: 40px;
+    transition: opacity 0.3s ease;
 }
 
-
-header h1 {
+.sidebar-header h3 {
     margin: 0;
-    font-size: 2em;
+    font-size: 1.4em;
+    font-weight: 600;
+    white-space: nowrap; /* Prevent wrapping */
+    opacity: 1;
+    transition: opacity 0.2s ease 0.1s, transform 0.3s ease-in-out; /* Delay opacity for smoother collapse */
 }
 
-nav {
-    margin-top: 10px;
+.sidebar-nav {
+    flex-grow: 1; /* Takes up available space */
 }
 
-nav a {
-    color: #fff;
+.sidebar-nav ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-nav ul li a {
+    display: flex; /* For icon and text alignment */
+    align-items: center;
+    padding: 12px 20px;
     text-decoration: none;
-    padding: 0.5rem 1rem;
+    color: var(--sidebar-text-color);
+    white-space: nowrap; /* Prevent text wrapping */
+    transition: background-color 0.2s ease, padding-left 0.3s ease;
 }
 
-nav a:hover {
-    background: #555;
-    border-radius: 5px;
-}
-
-main {
-    padding: 20px;
-    max-width: 960px;
-    margin: 20px auto;
-    background: #fff;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-}
-
-footer {
+.sidebar-nav ul li a i {
+    margin-right: 12px;
+    font-size: 1.1em;
+    width: 20px; /* Fixed width for icon alignment */
     text-align: center;
-    padding: 20px;
-    background: #333;
-    color: #fff;
-    margin-top: 30px;
+    transition: margin-right 0.3s ease;
 }
 
+.sidebar-nav ul li a:hover {
+     background-color: var(--sidebar-link-hover-bg);
+}
+.sidebar-nav ul li a.active { /* Add .active class via JS/Flask if needed for current page */
+    background-color: var(--sidebar-link-active-bg);
+    font-weight: 600;
+}
+
+.menu-divider hr {
+    border: 0;
+    height: 1px;
+    background-color: #4a627a;
+    margin: 10px 20px;
+}
+
+.sidebar-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #4a627a;
+    font-size: 0.9em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 1;
+    transition: opacity 0.2s ease 0.1s;
+}
+.sidebar-footer i {
+    margin-right: 8px;
+}
+
+
+/* Collapsed Sidebar Styles */
+.sidebar.collapsed {
+    width: var(--sidebar-width-collapsed);
+}
+
+.sidebar.collapsed .sidebar-header h3,
+.sidebar.collapsed .sidebar-nav ul li a span, /* Target the span for text */
+.sidebar.collapsed .sidebar-footer span, /* If you wrap text in sidebar-footer */
+.sidebar.collapsed .sidebar-footer { /* Hide entire footer content if not just a span */
+    opacity: 0;
+    width: 0; /* Helps ensure no overflow */
+    overflow: hidden;
+    pointer-events: none;
+    white-space: nowrap; /* Ensure it doesn't try to wrap and take space */
+}
+
+.sidebar.collapsed .sidebar-monogram {
+    /* opacity: 0; */
+}
+
+.sidebar.collapsed .sidebar-header h3 {
+    transform: translateX(-150px); /* Adjust to fully hide */
+}
+
+.sidebar.collapsed .sidebar-nav ul li a {
+    justify-content: center;
+    padding: 12px 0;
+}
+.sidebar.collapsed .sidebar-nav ul li a i {
+    margin-right: 0;
+    font-size: 1.3em;
+}
+/* ... */
+
+/* For mobile responsiveness with .collapsed meaning "visible" */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    .sidebar.collapsed { /* On mobile, 'collapsed' means visible */
+        transform: translateX(0);
+        width: var(--sidebar-width);
+    }
+
+    /* When sidebar is visible on mobile, text (span) should also be visible */
+    .sidebar.collapsed .sidebar-header h3,
+    .sidebar.collapsed .sidebar-nav ul li a span,
+    .sidebar.collapsed .sidebar-footer, /* Show entire footer */
+    .sidebar.collapsed .sidebar-footer span { /* If you had a span inside */
+        opacity: 1;
+        width: auto; /* Reset width */
+        overflow: visible;
+        pointer-events: auto;
+    }
+    /* ... rest of mobile styles ... */
+}
+
+
+/* --- Main Content Area --- */
+.main-content {
+    flex-grow: 1;
+    margin-left: var(--sidebar-width); /* Default margin for sidebar */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Ensure it stretches */
+    transition: margin-left 0.3s ease-in-out;
+}
+
+.page-container.sidebar-collapsed .main-content {
+    margin-left: var(--sidebar-width-collapsed);
+}
+
+
+.main-header {
+    background-color: #fff;
+    padding: 0 20px;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    position: sticky; /* Sticky header */
+    top: 0;
+    z-index: 900; /* Below sidebar */
+    justify-content: space-between;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: var(--text-color);
+    cursor: pointer;
+    margin-right: 15px;
+    padding: 5px;
+    flex-shrink: 0;
+}
+.header-app-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* margin-right: auto; /* Pushes page-title-header to the right if it's the only other item */
+}
+.header-main-monogram { /* If you choose to use a logo in the main header */
+    max-height: 30px; /* Keep it small */
+}
+
+.header-app-name {
+    font-size: 1.1em; /* Or adjust as needed */
+    font-weight: 500;
+    color: var(--text-color); /* Or a specific header text color */
+}
+.page-title-header {
+    /* This will now be pushed by other elements or centered if using margin auto on siblings */
+    /* text-align: center; /* If you want it centered and it's the middle element */
+    /* flex-grow: 1; /* If you want it to take available space and then text-align its content */
+    margin-left: 20px; /* Add some space from the app name */
+    margin-right: auto; /* Pushes it left, keeping toggle and app name together */
+}
+
+.page-title-header h1 {
+    font-size: 1.3em; /* Slightly smaller for less dominance if app name is present */
+    margin: 0;
+    color: var(--text-color);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.company-screen-details {
+    font-size: 0.8em;
+    color: #666;
+    text-align: right; /* Example positioning */
+    /* Add more styling for positioning, perhaps absolute if needed */
+}
+
+.content-area {
+    padding: 25px;
+    flex-grow: 1; /* Takes up available space */
+    background-color: var(--content-bg);
+}
+
+.main-footer {
+    text-align: center;
+    padding: 15px;
+    background: #fff;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9em;
+    color: #777;
+}
+
+/* --- Flashes --- */
+.flashes {
+    list-style-type: none;
+    padding: 0;
+    margin-bottom: 20px;
+}
+.flashes li {
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+}
+.flashes li.success {
+    background-color: #d4edda; color: #155724; border-color: #c3e6cb;
+}
+.flashes li.error {
+    background-color: #f8d7da; color: #721c24; border-color: #f5c6cb;
+}
+.flashes li.info {
+    background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb;
+}
+.flashes li.warning { /* If you add a warning category */
+    background-color: #fff3cd; color: #856404; border-color: #ffeeba;
+}
+
+
+/* --- Forms, Tables, Buttons (Keep or adapt your existing styles) --- */
 table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
+    border: 1px solid var(--border-color);
+    padding: 10px 12px;
     text-align: left;
 }
 
 th {
-    background-color: #f0f0f0;
+    background-color: #f8f9fa;
+    font-weight: 600;
 }
 
 form div {
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
 label {
     display: block;
     margin-bottom: 5px;
+    font-weight: 500;
 }
 
 input[type="text"],
+input[type="password"],
 input[type="number"],
 input[type="date"],
+input[type="email"], /* If you add email fields */
 textarea,
 select {
-    width: calc(100% - 22px); /* Account for padding and border */
+    width: 100%;
     padding: 10px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    box-sizing: border-box; /* So width includes padding and border */
+    font-size: 1em;
+    transition: border-color 0.2s ease;
+}
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="email"]:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
 }
 
+
 button, .button {
-    background: #007bff;
+    background: var(--primary-color);
     color: white;
     border: none;
-    padding: 10px 15px;
+    padding: 10px 18px;
     text-decoration: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 1em;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
 }
 
 button:hover, .button:hover {
-    background: #0056b3;
+    background: var(--primary-hover-color);
 }
 
-.flashes {
-    list-style-type: none;
-    padding: 0;
-    margin-bottom: 15px;
+.link-button {
+    background: none!important;
+    border: none;
+    padding: 0!important;
+    color: var(--primary-color);
+    text-decoration: none; /* Usually no underline for buttons that look like links */
+    cursor: pointer;
+    font-size: 1em;
+    font-family: inherit;
 }
-.flashes li {
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 4px;
+.link-button:hover {
+    color: var(--primary-hover-color);
+    text-decoration: underline;
 }
-.flashes li.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-.flashes li.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
+.delete-button { color: #dc3545; }
+.delete-button:hover { color: #c82333; }
 
-/* Print Styles */
-@media print {
-    body {
-        font-family: 'Times New Roman', Times, serif; /* Common print font */
-        font-size: 12pt;
-        color: black;
-        background-color: white;
-    }
-    header, nav, footer, form, button, .button, .flashes, a[href^="http"]:after, a[href^="//"]:after {
-        display: none !important; /* Hide non-essential elements for printing */
-    }
-    main {
-        box-shadow: none;
-        margin: 0;
-        max-width: 100%;
-        padding: 0;
-    }
-    table {
-        width: 100%;
-        font-size: 10pt; /* Smaller font for tables in print */
-    }
-    th, td {
-        border: 1px solid #ccc;
-    }
-    .print-header { /* We'll add this class to report sections */
-        display: block !important;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .print-header img.monogram {
-        max-height: 80px; /* Adjust for print */
-        display: block;
-        margin: 0 auto 10px auto;
-    }
-    .print-footer {
-        display: block !important;
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        text-align: center;
-        font-size: 9pt;
-    }
-    a { text-decoration: none; color: black; }
+
+/* --- Dashboard Specific Styles from index.html (example of integrating) --- */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
 }
-
-/* ... (previous styles) ... */
-
-.report-container {
-    border: 1px solid #ccc;
+.summary-card {
+    background-color: #fff; /* White cards */
     padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.07);
+}
+.summary-card h3 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+.summary-card p.detail-value { /* Renamed from just 'p' to be more specific */
+    font-size: 1.8em;
+    color: var(--primary-color);
+    margin: 5px 0 10px 0;
+    font-weight: bold;
+}
+.summary-card .detail {
+    font-size: 0.9em;
+    color: #6c757d; /* Muted color */
+}
+.list-section table {
+    font-size: 0.9em;
+    box-shadow: none; /* Remove double shadow if card has one */
+    border: none; /* Remove border if card has one */
+}
+.list-section table th, .list-section table td {
+    padding: 8px 10px;
+    border-left: none;
+    border-right: none;
+}
+.list-section table thead th {
+    border-top: none;
+}
+.list-section table tbody tr:last-child td {
+    border-bottom: none;
 }
 
-.print-header {
-    display: none; /* Hidden by default, shown by print styles */
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.print-header img.monogram {
-    max-height: 80px; /* Adjust for print */
-    display: block;
-    margin: 0 auto 10px auto;
-}
-
-.print-header h2, .print-header h3, .print-header p {
-    margin: 5px 0;
-}
-
-.print-footer {
-    display: none; /* Hidden by default, shown by print styles */
-}
-
-.filter-form {
-    margin-bottom: 20px;
-    padding: 10px;
-    background-color: #f9f9f9;
-    border: 1px solid #eee;
-    border-radius: 5px;
-}
-.filter-form label {
-    margin-right: 5px;
-}
-.filter-form input[type="date"], .filter-form button {
-    margin-right: 10px;
-}
+.negative-balance { color: #dc3545; font-weight: bold; }
+.positive-balance { color: #28a745; font-weight: bold; }
 
 
-/* Print Styles */
+/* --- Print Styles (Keep your existing, ensure no-print hides .sidebar and .main-header ) --- */
 @media print {
     body {
         font-family: 'Times New Roman', Times, serif;
         font-size: 10pt;
         color: black;
         background-color: white;
-        margin: 20mm; /* Standard print margin */
+        margin: 15mm; /* Adjust if needed */
         width: auto;
+        display: block; /* Override flex for printing */
     }
 
-    /* Hide elements not for print */
-    header, nav, footer, .filter-form, button.button, a.button, .flashes,
+    .page-container {
+        display: block; /* Override flex */
+    }
+
+    .sidebar, .main-header, .main-footer.no-print, .flashes,
+    button, .button, .sidebar-toggle,
     .no-print /* Generic class to hide elements */
     {
         display: none !important;
     }
 
-    main {
-        box-shadow: none;
-        margin: 0;
-        max-width: 100%;
-        padding: 0;
-        width: 100%;
+    .main-content {
+        margin-left: 0 !important; /* Remove margin when sidebar is hidden */
+        min-height: auto;
     }
 
-    .report-container {
-        border: none;
+    .content-area {
         padding: 0;
     }
 
+    .report-container { border: none; padding: 0; }
+    .print-header { display: block !important; width: 100%; text-align: center; margin-bottom: 10mm; }
+    .print-header img.monogram { max-height: 70px; margin-bottom: 5mm; }
+    .print-header hr { border-top: 1px solid #666; }
     .print-header {
-        display: block !important;
-        width: 100%;
-        text-align: center; /* Ensure text within header is centered */
-        margin-bottom: 10mm; /* Space after header */
-        page-break-after: auto;
-    }
-    .print-header img.monogram {
-        max-height: 70px;
-        margin-bottom: 5mm;
-    }
-    .print-header hr {
-        border-top: 1px solid #666;
-    }
+    display: none; /* Hide by default on screen, only shown by print styles */
+    /* If you want it visible on screen for previewing the report page: */
+    /* margin-bottom: 20px; text-align: center; border: 1px dashed #ccc; padding: 10px; */
+}
 
-    table {
-        width: 100%;
-        font-size: 9pt;
-        border-collapse: collapse;
-        page-break-inside: auto;
-    }
-    tr {
-        page-break-inside: avoid;
-        page-break-after: auto;
-    }
-    th, td {
-        border: 1px solid #666 !important;
-        padding: 4px;
-        overflow-wrap: break-word;
-        word-wrap: break-word;
-    }
-    th {
-        background-color: #eee !important;
-        font-weight: bold;
-    }
-    td[style*="text-align:right"] {
-        text-align: right !important;
-    }
+    table { width: 100%; font-size: 9pt; border-collapse: collapse; page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    th, td { border: 1px solid #666 !important; padding: 4px; overflow-wrap: break-word; }
+    th { background-color: #eee !important; font-weight: bold; }
+    td[style*="text-align:right"] { text-align: right !important; }
 
     .print-footer {
-        display: block !important; /* MAKE SURE THIS IS PRESENT AND NOT OVERRIDDEN */
-        position: fixed;          /* Position it at the bottom of each page */
-        bottom: 10mm;             /* Distance from the bottom edge of the page (respect body margin) */
-        left: 20mm;               /* Align with left body margin */
-        right: 20mm;              /* Align with right body margin */
-        width: calc(100% - 40mm); /* Occupy width within body margins */
+        display: block !important;
+        position: fixed;
+        bottom: 10mm;
+        left: 15mm;
+        right: 15mm;
+        width: calc(100% - 30mm);
         text-align: center;
         font-size: 8pt;
         border-top: 1px solid #ccc;
-        padding-top: 3mm;         /* Space above text within footer */
+        padding-top: 3mm;
+    }
+    .print-header {
+        display: block !important; /* Make sure this overrides */
+        width: 100%;
+        text-align: center;
+        margin-bottom: 10mm; /* Space after header for print */
+        page-break-after: auto;
+    }
+    .print-header img.monogram {
+        max-height: 70px; /* Or your desired print size */
+        margin-bottom: 5mm;
+    }
+    .print-header h2, .print-header h3, .print-header p {
+        margin: 3px 0; /* Adjust spacing for print */
+        font-size: 10pt; /* Adjust font size for print */
+    }
+    .print-header h2 { font-size: 12pt; font-weight: bold; }
+    .print-header hr {
+        border-top: 1px solid #666;
+        margin: 5mm 0;
     }
 
-    /* Remove hyperlink styling for print */
-    a, a:visited {
-        text-decoration: none !important;
-        color: inherit !important;
+    a, a:visited { text-decoration: none !important; color: inherit !important; }
+    a[href]:after { content: "" !important; }
+}
+
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%); /* Initially hidden off-screen */
+        /* position: fixed; top: 0; left: 0; bottom: 0; z-index: 1000; */ /* Already fixed */
     }
-    a[href]:after {
-        content: "" !important;
+    .sidebar.collapsed { /* On mobile, 'collapsed' means visible */
+        transform: translateX(0);
+        width: var(--sidebar-width); /* Full width when visible on mobile */
+        box-shadow: 3px 0 15px rgba(0,0,0,0.1);
     }
-}
 
-
-
-.user-info {
-    text-align: right;
-    padding: 0 20px 5px 20px; /* Adjust padding as needed */
-    color: #ccc; /* Lighter color for user info in header */
-    font-size: 0.9em;
-}
-
-/* ... existing print styles ... */
-@media print {
-    /* ... ensure .no-print is effective ... */
-    .no-print {
-        display: none !important;
+    /* When sidebar is visible on mobile, text should also be visible */
+    .sidebar.collapsed .sidebar-header h3,
+    .sidebar.collapsed .sidebar-nav ul li a span, /* If using spans */
+    .sidebar.collapsed .sidebar-footer span, /* If using spans */
+    .sidebar.collapsed .sidebar-nav ul li a {
+        opacity: 1;
+        overflow: visible;
+        pointer-events: auto;
     }
-}
-/* ... existing styles ... */
-.link-button {
-    background: none!important;
-    border: none;
-    padding: 0!important;
-    color: #007bff; /* Or your link color */
-    text-decoration: underline;
-    cursor: pointer;
-    font-size: 1em; /* Or inherit */
-    font-family: inherit; /* Or inherit */
-}
-.link-button:hover {
-    color: #0056b3; /* Link hover color */
-}
-.delete-button {
-    color: red;
-}
-.delete-button:hover {
-    color: darkred;
+     .sidebar.collapsed .sidebar-header h3 {
+        transform: translateX(0);
+    }
+    .sidebar.collapsed .sidebar-nav ul li a {
+        justify-content: flex-start; /* Align text to start */
+        padding: 12px 20px;
+    }
+    .sidebar.collapsed .sidebar-nav ul li a i {
+        margin-right: 12px;
+        font-size: 1.1em; /* Normal icon size */
+    }
+     .sidebar.collapsed .sidebar-footer {
+        opacity: 1;
+        padding: 15px 20px;
+        text-align: left;
+    }
+     .sidebar.collapsed .logo-container-sidebar {
+        justify-content: flex-start;
+    }
+
+
+    .main-content {
+        margin-left: 0 !important; /* Full width when sidebar is hidden */
+    }
+    /* No change for .page-container.sidebar-collapsed .main-content on mobile */
+    /* It's handled by sidebar visibility and main-content taking full width */
+
+
+    .dashboard-grid {
+        grid-template-columns: 1fr; /* Stack cards on mobile */
+    }
+
+    .content-area {
+        padding: 15px;
+    }
+    .page-title-header h1 {
+        font-size: 1.3em;
+    }
 }

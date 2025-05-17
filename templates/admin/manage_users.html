@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 
 {% block title %}Manage Users{% endblock %}
+{% block page_header %}Manage Users{% endblock %}
+
 
 {% block content %}
-<h2>Manage Users</h2>
+<!-- <h2>Manage Users</h2> -->
 <p><a href="{{ url_for('add_user_admin') }}" class="button">Add New User</a></p>
 
 {% if users %}

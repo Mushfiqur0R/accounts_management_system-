@@ -1,43 +1,170 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard{% endblock %}
+{% block page_header %}Dashboard{% endblock %}
 
 {% block content %}
-<h2>Client List</h2>
-{% if clients %}
-    <table>
-        <thead>
-            <tr>
-                <th>Client Name</th>
-                <th>Contact Number</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for client in clients %}
-            <tr>
-                <td>{{ client.name }}</td>
-                <td>{{ client.contact_number if client.contact_number else 'N/A' }}</td>
-                
-                {# ... inside the clients table ... #}
-                <td class="no-print">
-                    <a href="{{ url_for('client_ledger', client_id=client.id) }}">View Ledger</a> |
-                    <a href="{{ url_for('add_transaction', client_id=client.id) }}">Add Transaction</a> |
-                    <a href="{{ url_for('edit_client', client_id=client.id) }}">Edit</a>
-                    {% if current_user.is_admin %} {# Only show delete to admins #}
-                    | <form method="post" action="{{ url_for('delete_client', client_id=client.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete client {{ client.name }}? This cannot be undone if they have no transactions.');">
-                        <button type="submit" class="link-button delete-button">Delete</button>
-                    </form>
-                    {% endif %}
-                </td>
-{# ... #}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
-    <p>No clients found. <a href="{{ url_for('add_client') }}">Add one now!</a></p>
-{% endif %}
+<h2>Dashboard</h2>
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .summary-card {
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #eee;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .summary-card h3 {
+        margin-top: 0;
+        color: #333;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+    }
+    .summary-card p {
+        font-size: 1.5em;
+        color: #007bff;
+        margin: 5px 0;
+        font-weight: bold;
+    }
+    .summary-card .detail {
+        font-size: 0.9em;
+        color: #666;
+    }
+    .list-section table {
+        font-size: 0.9em;
+    }
+    .list-section table th, .list-section table td {
+        padding: 6px 8px;
+    }
+    .negative-balance {
+        color: red;
+    }
+    .positive-balance {
+        color: green;
+    }
+</style>
 
-<p><a href="{{ url_for('add_client') }}" class="button">Add New Client</a></p>
+<!-- <h2>Dashboard</h2> -->
+
+<div class="dashboard-grid">
+    <div class="summary-card">
+        <h3>Total Receivables</h3>
+        <p>{{ "%.2f"|format(total_receivables) }}</p>
+        <p class="detail">From {{ clients|length }} clients</p>
+    </div>
+    <div class="summary-card">
+        <h3>Conveyance Expenses ({{ current_month_display }})</h3>
+        <p>{{ "%.2f"|format(current_month_conveyance_total) }}</p>
+        <p class="detail"><a href="{{ url_for('view_conveyance_bills') }}">View All Conveyance</a></p>
+    </div>
+    <!-- Add more summary cards as needed -->
+</div>
+
+<div class="dashboard-grid">
+    <div class="list-section summary-card">
+        <h3>Recent Transactions</h3>
+        {% if recent_transactions %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th>Narration</th>
+                        <th style="text-align:right;">Debit</th>
+                        <th style="text-align:right;">Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trx in recent_transactions %}
+                    <tr>
+                        <td>{{ trx.transaction_date|datetimeformat('%d-%b-%Y') }}</td>
+                        <td><a href="{{ url_for('client_ledger', client_id=trx.client_id) }}">{{ trx.client_name }}</a></td>
+                        <td>{{ trx.narration[:30] if trx.narration else 'N/A' }}{{ '...' if trx.narration and trx.narration|length > 30 }}</td>
+                        <td style="text-align:right;">{{ "%.2f"|format(trx.debit) if trx.debit else '' }}</td>
+                        <td style="text-align:right;">{{ "%.2f"|format(trx.credit) if trx.credit else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No recent transactions.</p>
+        {% endif %}
+    </div>
+
+    <div class="list-section summary-card">
+        <h3>Recent Conveyance Bills</h3>
+        {% if recent_conveyance_bills %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Person</th>
+                        <th>Purpose</th>
+                        <th style="text-align:right;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bill in recent_conveyance_bills %}
+                    <tr>
+                        <td>{{ bill.bill_date|datetimeformat('%d-%b-%Y') }}</td>
+                        <td>{{ bill.person_name }}</td>
+                        <td>{{ bill.purpose[:30] if bill.purpose else 'N/A' }}{{ '...' if bill.purpose and bill.purpose|length > 30 }}</td>
+                        <td style="text-align:right;">{{ "%.2f"|format(bill.amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No recent conveyance bills.</p>
+        {% endif %}
+    </div>
+</div>
+
+
+<div class="list-section summary-card" style="grid-column: 1 / -1;"> {# Make client list span full width #}
+    <h3>Client Balances (Debtors)</h3>
+    {% if clients %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Client Name</th>
+                    <th>Contact Number</th>
+                    <th style="text-align:right;">Balance (Receivable)</th>
+                    <th class="no-print">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for client in clients %}
+                <tr>
+                    <td>{{ client.name }}</td>
+                    <td>{{ client.contact_number if client.contact_number else 'N/A' }}</td>
+                    <td style="text-align:right;" class="{{ 'positive-balance' if client.balance > 0 else 'negative-balance' if client.balance < 0 else '' }}">
+                        {{ "%.2f"|format(client.balance) }}
+                    </td>
+                    <td class="no-print">
+                        <a href="{{ url_for('client_ledger', client_id=client.id) }}">Ledger</a> |
+                        <a href="{{ url_for('add_transaction', client_id=client.id) }}">Add Trx</a> |
+                        <a href="{{ url_for('edit_client', client_id=client.id) }}">Edit</a>
+                        {% if current_user.is_admin %}
+                        | <form method="post" action="{{ url_for('delete_client', client_id=client.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete client {{ client.name }}? This cannot be undone if they have no transactions.');">
+                            <button type="submit" class="link-button delete-button">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No clients found. <a href="{{ url_for('add_client') }}">Add one now!</a></p>
+    {% endif %}
+    <p class="no-print" style="margin-top:15px;"><a href="{{ url_for('add_client') }}" class="button">Add New Client</a></p>
+</div>
+
 {% endblock %}

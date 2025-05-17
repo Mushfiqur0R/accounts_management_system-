@@ -3,66 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Accounts Management{% endblock %}</title>
+    <title>{% block title %}Accounts Management{% endblock %} - {{ company_details.company_name if company_details else "AMS" }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> {# For Hamburger Icon #}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="page-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container-sidebar">
+                    {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
+                        <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Monogram" class="sidebar-monogram">
+                    {% endif %}
+                    <h3>{% if company_details %}{{ company_details.company_name }}{% else %}AMS{% endif %}</h3>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+    {% if current_user.is_authenticated %}
+        <li class="{{ 'active' if request.endpoint == 'index' else '' }}"><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> <span>Dashboard</span></a></li>
+        <li class="{{ 'active' if request.endpoint == 'add_client' else '' }}"><a href="{{ url_for('add_client') }}"><i class="fas fa-user-plus"></i> <span>Add Client</span></a></li>
+        <li class="{{ 'active' if request.endpoint == 'view_conveyance_bills' else '' }}"><a href="{{ url_for('view_conveyance_bills') }}"><i class="fas fa-route"></i> <span>Conveyance Bills</span></a></li>
+        <li class="{{ 'active' if request.endpoint == 'add_conveyance' else '' }}"><a href="{{ url_for('add_conveyance') }}"><i class="fas fa-plus-circle"></i> <span>Add Conveyance</span></a></li>
+        <li class="{{ 'active' if request.endpoint == 'monthly_client_summary_report' else '' }}"><a href="{{ url_for('monthly_client_summary_report') }}"><i class="fas fa-chart-line"></i> <span>Monthly Summary</span></a></li>
+
+        {% if current_user.is_admin %}
+            <li class="menu-divider"><hr></li>
+            <li class="{{ 'active' if request.endpoint in ['manage_users', 'add_user_admin'] else '' }}"><a href="{{ url_for('manage_users') }}"><i class="fas fa-users-cog"></i> <span>Manage Users</span></a></li>
+            <li class="{{ 'active' if request.endpoint == 'edit_company_details' else '' }}"><a href="{{ url_for('edit_company_details') }}"><i class="fas fa-cog"></i> <span>Company Settings</span></a></li>
+        {% endif %}
+        <li class="menu-divider"><hr></li>
+        <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></li>
+    {% else %}
+        <li class="{{ 'active' if request.endpoint == 'login' else '' }}"><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> <span>Login</span></a></li>
+        <li class="{{ 'active' if request.endpoint == 'register' else '' }}"><a href="{{ url_for('register') }}"><i class="fas fa-user-plus"></i> <span>Register</span></a></li>
+    {% endif %}
+</ul>
+            </nav>
+            <div class="sidebar-footer">
+                 {% if current_user.is_authenticated %}
+                    <i class="fas fa-user-circle"></i> {{ current_user.username }}
+                {% endif %}
+            </div>
+        </aside>
+
+        <div class="main-content">
+            <header class="main-header no-print">
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="header-app-info"> {# New wrapper for logo and app name in header #}
+        {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
+            {# Small logo in the main header - optional, can be too busy #}
+            {# <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Monogram" class="header-main-monogram"> #}
+        {% endif %}
+        <span class="header-app-name">{% if company_details %}{{ company_details.company_name }}{% else %}Accounts Management{% endif %}</span>
+    </div>
+    <div class="page-title-header">
+        <h1>{% block page_header %}{% endblock %}</h1>
+    </div>
+    {# Optional: User info can also go here if not in sidebar footer #}
+</header>
+            <main class="content-area">
+                 {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <ul class=flashes>
+                        {% for category, message in messages %}
+                            <li class="{{ category }}">{{ message }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </main>
+            <footer class="main-footer no-print">
+                <p>© {{ _year }} {% if company_details %}{{ company_details.company_name }}{% else %}Your Company{% endif %}. All rights reserved.</p>
+            </footer>
+        </div>
+    </div>
+
     <script>
+        // Simple sidebar toggle
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const pageContainer = document.querySelector('.page-container');
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            pageContainer.classList.toggle('sidebar-collapsed');
+        });
+
+        // Optional: Close sidebar when clicking outside on mobile, or on link click
+        // This can be expanded for better UX
+
         // Simple print function for reports
         function printReport() {
             window.print();
         }
     </script>
-</head>
-<body>
-    <header>
-        <div class="logo-container">
-            {% if company_details and company_details.monogram_path %}
-                <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Company Monogram" class="monogram">
-            {% endif %}
-            <h1>{% if company_details %}{{ company_details.company_name }}{% else %}Accounts Management System{% endif %}</h1>
-        </div>
-        <div class="user-info no-print"> {# Added no-print class #}
-            {% if current_user.is_authenticated %}
-                Logged in as: <strong>{{ current_user.username }}</strong>
-            {% endif %}
-        </div>
-        <nav class="no-print">
-            {% if current_user.is_authenticated %}
-                <a href="{{ url_for('index') }}">Home (Clients)</a>
-                {# Regular user links #}
-                <a href="{{ url_for('add_client') }}">Add Client</a>
-                <a href="{{ url_for('view_conveyance_bills') }}">Conveyance Bills</a>
-                <a href="{{ url_for('add_conveyance') }}">Add Conveyance</a>
-                <a href="{{ url_for('monthly_client_summary_report') }}">Monthly Client Summary</a>
-    
-                {% if current_user.is_admin %} {# Admin specific links #}
-                    <a href="{{ url_for('manage_users') }}">Manage Users</a>
-                    <a href="{{ url_for('edit_company_details') }}">Company Settings</a>
-                {% endif %}
-    
-                <a href="{{ url_for('logout') }}">Logout</a>
-            {% else %}
-                <a href="{{ url_for('login') }}">Login</a>
-                <a href="{{ url_for('register') }}">Register</a>
-            {% endif %}
-        </nav>
-    </header>
-    <main>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <ul class=flashes>
-                {% for category, message in messages %}
-                    <li class="{{ category }}">{{ message }}</li>
-                {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
-    </main>
-    <footer>
-        <p>© {% if company_details %}{{ company_details.company_name }}{% else %}Your Company{% endif %} - {{_year}}</p>
-        {% if company_details %}
-        <p>{{ company_details.address }} | {{ company_details.contact_info }}</p>
-        {% endif %}
-    </footer>
 </body>
 </html>
