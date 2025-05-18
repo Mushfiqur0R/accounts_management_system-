@@ -25,15 +25,15 @@ body {
     line-height: 1.6;
     background-color: var(--content-bg);
     color: var(--text-color);
-    display: flex; /* For page-container to take full height */
+    display: flex;
     min-height: 100vh;
-    overflow-x: hidden; /* Prevent horizontal scroll from transitions */
+    overflow-x: hidden;
 }
 
 .page-container {
     display: flex;
-    flex-grow: 1; /* Take full available space */
-    transition: margin-left 0.3s ease-in-out;
+    flex-grow: 1;
+    transition: margin-left 0.3s ease-in-out; /* For when sidebar state changes on desktop */
 }
 
 /* --- Sidebar --- */
@@ -43,45 +43,28 @@ body {
     color: var(--sidebar-text-color);
     display: flex;
     flex-direction: column;
-    position: fixed; /* Fixed position */
+    position: fixed;
     left: 0;
     top: 0;
     bottom: 0;
-    z-index: 1000; /* Above other content */
+    z-index: 1000;
     transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
-    overflow-y: auto; /* Scroll for long menus */
-    overflow-x: hidden; /* Hide text when collapsing */
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .sidebar-header {
     padding: 15px;
     text-align: center;
-    border-bottom: 1px solid #4a627a; /* Slightly lighter border */
-}
-
-.sidebar-nav ul li.active a { /* Style the <a> tag within the active <li> */
-    background-color: var(--sidebar-link-active-bg); /* Defined in :root, e.g., var(--primary-color) */
-    color: #fff; /* Example: white text on active primary color background */
-    font-weight: 600;
-    border-left: 3px solid #f39c12; /* Example accent border */
-    padding-left: 17px; /* Adjust to account for border if padding was 20px */
-}
-
-/* Ensure active state still looks good when sidebar is collapsed (icon focus) */
-.sidebar.collapsed .sidebar-nav ul li.active a {
-    /* background-color: var(--sidebar-link-active-bg); */ /* Keep background for icon */
-    padding-left: 0; /* Reset padding for centered icon */
-    border-left: none; /* Remove border if it looks odd on collapsed */
-}
-.sidebar.collapsed .sidebar-nav ul li.active a i {
-    color: #f39c12; /* Example: Highlight icon color */
+    border-bottom: 1px solid #4a627a;
 }
 
 .logo-container-sidebar {
     display: flex;
     align-items: center;
-    justify-content: center; /* Center when collapsed */
+    justify-content: center;
     gap: 10px;
+    min-height: 40px; /* Ensure space even if no monogram */
 }
 
 .sidebar-monogram {
@@ -93,13 +76,13 @@ body {
     margin: 0;
     font-size: 1.4em;
     font-weight: 600;
-    white-space: nowrap; /* Prevent wrapping */
+    white-space: nowrap;
     opacity: 1;
-    transition: opacity 0.2s ease 0.1s, transform 0.3s ease-in-out; /* Delay opacity for smoother collapse */
+    transition: opacity 0.2s ease 0.1s, transform 0.3s ease-in-out;
 }
 
 .sidebar-nav {
-    flex-grow: 1; /* Takes up available space */
+    flex-grow: 1;
 }
 
 .sidebar-nav ul {
@@ -109,29 +92,35 @@ body {
 }
 
 .sidebar-nav ul li a {
-    display: flex; /* For icon and text alignment */
+    display: flex;
     align-items: center;
     padding: 12px 20px;
     text-decoration: none;
     color: var(--sidebar-text-color);
-    white-space: nowrap; /* Prevent text wrapping */
-    transition: background-color 0.2s ease, padding-left 0.3s ease;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, padding-left 0.3s ease, color 0.2s ease;
 }
 
 .sidebar-nav ul li a i {
     margin-right: 12px;
     font-size: 1.1em;
-    width: 20px; /* Fixed width for icon alignment */
+    width: 20px;
     text-align: center;
-    transition: margin-right 0.3s ease;
+    transition: margin-right 0.3s ease, font-size 0.3s ease;
 }
 
 .sidebar-nav ul li a:hover {
-     background-color: var(--sidebar-link-hover-bg);
+    background-color: var(--sidebar-link-hover-bg);
+    /* color: #fff; /* Optional: slightly brighter text on hover */
 }
-.sidebar-nav ul li a.active { /* Add .active class via JS/Flask if needed for current page */
+
+/* Active link styling */
+.sidebar-nav ul li.active a {
     background-color: var(--sidebar-link-active-bg);
+    color: #fff; /* White text on active primary color background */
     font-weight: 600;
+    border-left: 3px solid #f39c12; /* Accent border */
+    padding-left: 17px; /* Original padding 20px - 3px border */
 }
 
 .menu-divider hr {
@@ -155,79 +144,66 @@ body {
     margin-right: 8px;
 }
 
-
-/* Collapsed Sidebar Styles */
+/* --- Collapsed Sidebar Styles (Desktop Icon-Only View) --- */
 .sidebar.collapsed {
     width: var(--sidebar-width-collapsed);
 }
 
 .sidebar.collapsed .sidebar-header h3,
-.sidebar.collapsed .sidebar-nav ul li a span, /* Target the span for text */
-.sidebar.collapsed .sidebar-footer span, /* If you wrap text in sidebar-footer */
-.sidebar.collapsed .sidebar-footer { /* Hide entire footer content if not just a span */
+.sidebar.collapsed .sidebar-nav ul li a span, /* Assumes text is wrapped in <span> */
+.sidebar.collapsed .sidebar-footer {
     opacity: 0;
-    width: 0; /* Helps ensure no overflow */
+    width: 0;
     overflow: hidden;
-    pointer-events: none;
-    white-space: nowrap; /* Ensure it doesn't try to wrap and take space */
+    pointer-events: none; /* Prevent interaction with hidden text parts */
+    white-space: nowrap;
 }
 
-.sidebar.collapsed .sidebar-monogram {
-    /* opacity: 0; */
+.sidebar.collapsed .sidebar-header {
+    /* Optional: Adjust padding if needed when collapsed, or rely on logo-container behavior */
 }
-
+.sidebar.collapsed .logo-container-sidebar {
+    justify-content: center; /* Ensure logo is centered */
+}
 .sidebar.collapsed .sidebar-header h3 {
-    transform: translateX(-150px); /* Adjust to fully hide */
+    transform: translateX(-200%); /* Ensure text is far off-screen */
 }
 
 .sidebar.collapsed .sidebar-nav ul li a {
-    justify-content: center;
-    padding: 12px 0;
+    justify-content: center; /* Center icon */
+    padding: 12px 0; /* Remove side padding */
+    /* Ensure pointer-events are re-enabled for the link itself if parent elements disable them */
+    pointer-events: auto;
 }
 .sidebar.collapsed .sidebar-nav ul li a i {
-    margin-right: 0;
-    font-size: 1.3em;
+    margin-right: 0; /* No margin for icon when text is hidden */
+    font-size: 1.3em; /* Slightly larger icons */
 }
-/* ... */
 
-/* For mobile responsiveness with .collapsed meaning "visible" */
-@media (max-width: 768px) {
-    .sidebar {
-        transform: translateX(-100%);
-    }
-    .sidebar.collapsed { /* On mobile, 'collapsed' means visible */
-        transform: translateX(0);
-        width: var(--sidebar-width);
-    }
-
-    /* When sidebar is visible on mobile, text (span) should also be visible */
-    .sidebar.collapsed .sidebar-header h3,
-    .sidebar.collapsed .sidebar-nav ul li a span,
-    .sidebar.collapsed .sidebar-footer, /* Show entire footer */
-    .sidebar.collapsed .sidebar-footer span { /* If you had a span inside */
-        opacity: 1;
-        width: auto; /* Reset width */
-        overflow: visible;
-        pointer-events: auto;
-    }
-    /* ... rest of mobile styles ... */
+/* Active link styling when collapsed */
+.sidebar.collapsed .sidebar-nav ul li.active a {
+    padding-left: 0; /* No padding adjustment needed */
+    border-left: none; /* Remove border, or make it top/bottom if preferred */
+    /* Optionally, a different visual cue for active icon */
+}
+.sidebar.collapsed .sidebar-nav ul li.active a i {
+    color: #f39c12; /* Highlight icon color for active link */
 }
 
 
 /* --- Main Content Area --- */
 .main-content {
     flex-grow: 1;
-    margin-left: var(--sidebar-width); /* Default margin for sidebar */
+    margin-left: var(--sidebar-width);
     display: flex;
     flex-direction: column;
-    min-height: 100vh; /* Ensure it stretches */
+    min-height: 100vh;
     transition: margin-left 0.3s ease-in-out;
 }
 
-.page-container.sidebar-collapsed .main-content {
+.page-container.sidebar-collapsed .main-content { /* When sidebar is collapsed on desktop */
     margin-left: var(--sidebar-width-collapsed);
 }
-
 
 .main-header {
     background-color: #fff;
@@ -235,12 +211,12 @@ body {
     height: var(--header-height);
     display: flex;
     align-items: center;
+    justify-content: space-between; /* Key for distributing items */
     border-bottom: 1px solid var(--border-color);
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    position: sticky; /* Sticky header */
+    position: sticky;
     top: 0;
-    z-index: 900; /* Below sidebar */
-    justify-content: space-between;
+    z-index: 900;
 }
 
 .sidebar-toggle {
@@ -249,35 +225,33 @@ body {
     font-size: 1.5em;
     color: var(--text-color);
     cursor: pointer;
-    margin-right: 15px;
+    margin-right: 15px; /* Space between toggle and app-info */
     padding: 5px;
-    flex-shrink: 0;
+    flex-shrink: 0; /* Prevent toggle from shrinking */
 }
+
 .header-app-info {
     display: flex;
     align-items: center;
     gap: 8px;
-    /* margin-right: auto; /* Pushes page-title-header to the right if it's the only other item */
+    /* This will be on the left, next to the toggle */
 }
-.header-main-monogram { /* If you choose to use a logo in the main header */
-    max-height: 30px; /* Keep it small */
+.header-main-monogram {
+    max-height: 30px;
 }
-
 .header-app-name {
-    font-size: 1.1em; /* Or adjust as needed */
+    font-size: 1.1em;
     font-weight: 500;
-    color: var(--text-color); /* Or a specific header text color */
-}
-.page-title-header {
-    /* This will now be pushed by other elements or centered if using margin auto on siblings */
-    /* text-align: center; /* If you want it centered and it's the middle element */
-    /* flex-grow: 1; /* If you want it to take available space and then text-align its content */
-    margin-left: 20px; /* Add some space from the app name */
-    margin-right: auto; /* Pushes it left, keeping toggle and app name together */
+    color: var(--text-color);
 }
 
+.page-title-header {
+    flex-grow: 1; /* Allow it to take up space */
+    text-align: center; /* Center the H1 within this container */
+    /* Or margin-left: 20px; margin-right: auto; as you had if you prefer left align after app-info */
+}
 .page-title-header h1 {
-    font-size: 1.3em; /* Slightly smaller for less dominance if app name is present */
+    font-size: 1.3em;
     margin: 0;
     color: var(--text-color);
     font-weight: 600;
@@ -285,16 +259,18 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* This was for on-screen address/phone. If not used, can be removed. */
 .company-screen-details {
     font-size: 0.8em;
     color: #666;
-    text-align: right; /* Example positioning */
-    /* Add more styling for positioning, perhaps absolute if needed */
+    text-align: right;
+    flex-shrink: 0; /* Prevent shrinking if used */
 }
 
 .content-area {
     padding: 25px;
-    flex-grow: 1; /* Takes up available space */
+    flex-grow: 1;
     background-color: var(--content-bg);
 }
 
@@ -319,21 +295,12 @@ body {
     border-radius: 5px;
     border: 1px solid transparent;
 }
-.flashes li.success {
-    background-color: #d4edda; color: #155724; border-color: #c3e6cb;
-}
-.flashes li.error {
-    background-color: #f8d7da; color: #721c24; border-color: #f5c6cb;
-}
-.flashes li.info {
-    background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb;
-}
-.flashes li.warning { /* If you add a warning category */
-    background-color: #fff3cd; color: #856404; border-color: #ffeeba;
-}
+.flashes li.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+.flashes li.error   { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+.flashes li.info    { background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
+.flashes li.warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
 
-
-/* --- Forms, Tables, Buttons (Keep or adapt your existing styles) --- */
+/* --- Forms, Tables, Buttons --- */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -341,13 +308,11 @@ table {
     background-color: #fff;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-
 th, td {
     border: 1px solid var(--border-color);
     padding: 10px 12px;
     text-align: left;
 }
-
 th {
     background-color: #f8f9fa;
     font-weight: 600;
@@ -356,39 +321,24 @@ th {
 form div {
     margin-bottom: 15px;
 }
-
 label {
     display: block;
     margin-bottom: 5px;
     font-weight: 500;
 }
-
-input[type="text"],
-input[type="password"],
-input[type="number"],
-input[type="date"],
-input[type="email"], /* If you add email fields */
-textarea,
-select {
+input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="email"], textarea, select {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 1em;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-input[type="text"]:focus,
-input[type="password"]:focus,
-input[type="number"]:focus,
-input[type="date"]:focus,
-input[type="email"]:focus,
-textarea:focus,
-select:focus {
+input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus, input[type="date"]:focus, input[type="email"]:focus, textarea:focus, select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
 }
-
 
 button, .button {
     background: var(--primary-color);
@@ -401,18 +351,26 @@ button, .button {
     font-size: 1em;
     font-weight: 500;
     transition: background-color 0.2s ease;
+    display: inline-flex; /* For icon alignment within button */
+    align-items: center;
+    gap: 8px; /* Space between icon and text in button */
 }
-
 button:hover, .button:hover {
     background: var(--primary-hover-color);
 }
+.button-small {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    gap: 5px;
+}
+/* Removed .button i { margin-right: 5px; } - using gap on button instead */
 
 .link-button {
     background: none!important;
     border: none;
     padding: 0!important;
     color: var(--primary-color);
-    text-decoration: none; /* Usually no underline for buttons that look like links */
+    text-decoration: none;
     cursor: pointer;
     font-size: 1em;
     font-family: inherit;
@@ -424,20 +382,21 @@ button:hover, .button:hover {
 .delete-button { color: #dc3545; }
 .delete-button:hover { color: #c82333; }
 
-
-/* --- Dashboard Specific Styles from index.html (example of integrating) --- */
+/* --- Dashboard Specific Styles --- */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 25px;
     margin-bottom: 30px;
 }
-.summary-card {
-    background-color: #fff; /* White cards */
+.summary-card { /* Base card style, also used by .chart-container and .list-section */
+    background-color: #fff;
     padding: 20px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
     box-shadow: 0 2px 5px rgba(0,0,0,0.07);
+    display: flex; /* Added for better internal alignment if needed */
+    flex-direction: column; /* Stack title and content */
 }
 .summary-card h3 {
     margin-top: 0;
@@ -447,8 +406,9 @@ button:hover, .button:hover {
     margin-bottom: 15px;
     font-size: 1.1em;
     font-weight: 600;
+    flex-shrink: 0; /* Prevent title from shrinking */
 }
-.summary-card p.detail-value { /* Renamed from just 'p' to be more specific */
+.summary-card p.detail-value {
     font-size: 1.8em;
     color: var(--primary-color);
     margin: 5px 0 10px 0;
@@ -456,20 +416,37 @@ button:hover, .button:hover {
 }
 .summary-card .detail {
     font-size: 0.9em;
-    color: #6c757d; /* Muted color */
+    color: #6c757d;
+}
+
+.chart-container { /* Specifics for chart cards if any, inherits .summary-card */
+    height: 380px; /* Fixed height for chart card, includes title */
+}
+.chart-container canvas {
+    flex-grow: 1; /* Canvas takes available space after title */
+    max-width: 100%;
+    max-height: 100%; /* Respect parent's flex distribution */
+}
+
+.list-section { /* Specifics for list cards, inherits .summary-card */
+    /* No specific height, determined by content */
 }
 .list-section table {
     font-size: 0.9em;
-    box-shadow: none; /* Remove double shadow if card has one */
-    border: none; /* Remove border if card has one */
+    box-shadow: none;
+    border: none;
+    margin-bottom: 0; /* Table itself has no bottom margin within card */
+    flex-grow: 1; /* If table is the main content of the card */
 }
 .list-section table th, .list-section table td {
     padding: 8px 10px;
     border-left: none;
     border-right: none;
+    border-bottom: 1px solid var(--border-color); /* Separator for rows */
+    border-top: none;
 }
 .list-section table thead th {
-    border-top: none;
+    border-bottom: 2px solid var(--border-color); /* Stronger separator for header */
 }
 .list-section table tbody tr:last-child td {
     border-bottom: none;
@@ -478,48 +455,39 @@ button:hover, .button:hover {
 .negative-balance { color: #dc3545; font-weight: bold; }
 .positive-balance { color: #28a745; font-weight: bold; }
 
+/* --- Print Styles --- */
+/* Default screen style for elements only meant for print */
+.print-header, .print-footer {
+    display: none;
+}
 
-/* --- Print Styles (Keep your existing, ensure no-print hides .sidebar and .main-header ) --- */
 @media print {
     body {
-        font-family: 'Times New Roman', Times, serif;
-        font-size: 10pt;
-        color: black;
-        background-color: white;
-        margin: 15mm; /* Adjust if needed */
-        width: auto;
-        display: block; /* Override flex for printing */
+        font-family: 'Times New Roman', Times, serif; font-size: 10pt;
+        color: black; background-color: white;
+        margin: 15mm; width: auto; display: block;
     }
-
-    .page-container {
-        display: block; /* Override flex */
-    }
+    .page-container { display: block; }
 
     .sidebar, .main-header, .main-footer.no-print, .flashes,
-    button, .button, .sidebar-toggle,
-    .no-print /* Generic class to hide elements */
-    {
+    button, .button, .sidebar-toggle, .report-actions, /* Added .report-actions here */
+    .no-print {
         display: none !important;
     }
 
-    .main-content {
-        margin-left: 0 !important; /* Remove margin when sidebar is hidden */
-        min-height: auto;
-    }
-
-    .content-area {
-        padding: 0;
-    }
-
+    .main-content { margin-left: 0 !important; min-height: auto; }
+    .content-area { padding: 0; }
     .report-container { border: none; padding: 0; }
-    .print-header { display: block !important; width: 100%; text-align: center; margin-bottom: 10mm; }
-    .print-header img.monogram { max-height: 70px; margin-bottom: 5mm; }
-    .print-header hr { border-top: 1px solid #666; }
-    .print-header {
-    display: none; /* Hide by default on screen, only shown by print styles */
-    /* If you want it visible on screen for previewing the report page: */
-    /* margin-bottom: 20px; text-align: center; border: 1px dashed #ccc; padding: 10px; */
-}
+
+    .print-header { /* This is for REPORT print headers */
+        display: block !important; width: 100%; text-align: center;
+        margin-bottom: 10mm; page-break-after: auto;
+    }
+    .print-header img.monogram { max-height: 60px; margin-bottom: 5mm; } /* Slightly smaller monogram */
+    .print-header h2 { font-size: 14pt; font-weight: bold; margin: 5px 0; }
+    .print-header h3 { font-size: 12pt; font-weight: bold; margin: 4px 0; }
+    .print-header p { font-size: 10pt; margin: 3px 0; }
+    .print-header hr { border-top: 1px solid #666; margin: 5mm 0; }
 
     table { width: 100%; font-size: 9pt; border-collapse: collapse; page-break-inside: auto; }
     tr { page-break-inside: avoid; page-break-after: auto; }
@@ -527,101 +495,72 @@ button:hover, .button:hover {
     th { background-color: #eee !important; font-weight: bold; }
     td[style*="text-align:right"] { text-align: right !important; }
 
-    .print-footer {
-        display: block !important;
-        position: fixed;
-        bottom: 10mm;
-        left: 15mm;
-        right: 15mm;
-        width: calc(100% - 30mm);
-        text-align: center;
-        font-size: 8pt;
-        border-top: 1px solid #ccc;
-        padding-top: 3mm;
-    }
-    .print-header {
-        display: block !important; /* Make sure this overrides */
-        width: 100%;
-        text-align: center;
-        margin-bottom: 10mm; /* Space after header for print */
-        page-break-after: auto;
-    }
-    .print-header img.monogram {
-        max-height: 70px; /* Or your desired print size */
-        margin-bottom: 5mm;
-    }
-    .print-header h2, .print-header h3, .print-header p {
-        margin: 3px 0; /* Adjust spacing for print */
-        font-size: 10pt; /* Adjust font size for print */
-    }
-    .print-header h2 { font-size: 12pt; font-weight: bold; }
-    .print-header hr {
-        border-top: 1px solid #666;
-        margin: 5mm 0;
+    .print-footer { /* This is for REPORT print footers */
+        display: block !important; position: fixed;
+        bottom: 10mm; left: 15mm; right: 15mm;
+        width: calc(100% - 30mm); text-align: center;
+        font-size: 8pt; border-top: 1px solid #ccc; padding-top: 3mm;
     }
 
     a, a:visited { text-decoration: none !important; color: inherit !important; }
-    a[href]:after { content: "" !important; }
+    a[href]::after { content: "" !important; } /* Avoid printing URLs for internal links */
 }
-
 
 /* --- Mobile Responsiveness --- */
 @media (max-width: 768px) {
     .sidebar {
-        transform: translateX(-100%); /* Initially hidden off-screen */
-        /* position: fixed; top: 0; left: 0; bottom: 0; z-index: 1000; */ /* Already fixed */
+        transform: translateX(-100%); /* Initially hidden */
+        box-shadow: 3px 0 15px rgba(0,0,0,0.2); /* Shadow when it slides in */
     }
-    .sidebar.collapsed { /* On mobile, 'collapsed' means visible */
+    .sidebar.collapsed { /* On mobile, .collapsed means "visible and full width" */
         transform: translateX(0);
-        width: var(--sidebar-width); /* Full width when visible on mobile */
-        box-shadow: 3px 0 15px rgba(0,0,0,0.1);
+        width: var(--sidebar-width); /* Full width */
     }
 
-    /* When sidebar is visible on mobile, text should also be visible */
+    /* Ensure text and elements are visible when sidebar is 'collapsed' (shown) on mobile */
     .sidebar.collapsed .sidebar-header h3,
-    .sidebar.collapsed .sidebar-nav ul li a span, /* If using spans */
-    .sidebar.collapsed .sidebar-footer span, /* If using spans */
-    .sidebar.collapsed .sidebar-nav ul li a {
+    .sidebar.collapsed .sidebar-nav ul li a span,
+    .sidebar.collapsed .sidebar-footer {
         opacity: 1;
+        width: auto; /* Allow natural width */
         overflow: visible;
         pointer-events: auto;
+        transform: translateX(0); /* Reset any desktop collapse transforms */
     }
-     .sidebar.collapsed .sidebar-header h3 {
-        transform: translateX(0);
-    }
+    .sidebar.collapsed .logo-container-sidebar { justify-content: flex-start; }
     .sidebar.collapsed .sidebar-nav ul li a {
         justify-content: flex-start; /* Align text to start */
-        padding: 12px 20px;
+        padding: 12px 20px; /* Restore original padding */
     }
     .sidebar.collapsed .sidebar-nav ul li a i {
-        margin-right: 12px;
-        font-size: 1.1em; /* Normal icon size */
+        margin-right: 12px; /* Restore margin */
+        font-size: 1.1em; /* Restore icon size */
     }
-     .sidebar.collapsed .sidebar-footer {
-        opacity: 1;
-        padding: 15px 20px;
-        text-align: left;
+    .sidebar.collapsed .sidebar-nav ul li.active a {
+        /* Ensure active styles for mobile are clear */
+        border-left: 3px solid #f39c12;
+        padding-left: 17px;
     }
-     .sidebar.collapsed .logo-container-sidebar {
-        justify-content: flex-start;
+    .sidebar.collapsed .sidebar-nav ul li.active a i {
+        color: var(--sidebar-text-color); /* Reset icon color unless specifically overridden */
     }
 
 
     .main-content {
-        margin-left: 0 !important; /* Full width when sidebar is hidden */
+        margin-left: 0 !important; /* Full width when sidebar is hidden (default mobile state) */
     }
-    /* No change for .page-container.sidebar-collapsed .main-content on mobile */
-    /* It's handled by sidebar visibility and main-content taking full width */
+    .page-container.sidebar-collapsed .main-content {
+        /* On mobile, when sidebar is shown, main content does NOT get a margin.
+           The sidebar overlays or pushes content if not handled by JS to add a class for that.
+           For simplicity, sidebar will overlay. If push is desired, JS needs to add a class to .page-container
+           that applies a margin-left to .main-content equal to var(--sidebar-width).
+           Current JS toggles .sidebar-collapsed on .page-container, which is used for desktop.
+           We could add specific logic for mobile if needed.
+        */
+    }
 
-
-    .dashboard-grid {
-        grid-template-columns: 1fr; /* Stack cards on mobile */
-    }
-
-    .content-area {
-        padding: 15px;
-    }
-    .page-title-header h1 {
-        font-size: 1.3em;
-    }
+    .dashboard-grid { grid-template-columns: 1fr; } /* Stack cards */
+    .content-area { padding: 15px; }
+    .page-title-header h1 { font-size: 1.2em; } /* Slightly smaller for mobile */
+    .header-app-name { font-size: 1em; }
 }

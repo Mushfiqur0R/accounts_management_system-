@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 
 {% block title %}Monthly Client Payment Summary{% endblock %}
+{% block page_header %}Monthly Client Payment Summary{% endblock %}
 
 {% block content %}
-<div class="report-container">
+<div class="report-container summary-card"> {# Added summary-card for consistent styling #}
     <div class="print-header">
-        {% if company_details and company_details.monogram_path %}
+        {# ... (print header content - seems okay) ... #}
+        {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
             <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Company Monogram" class="monogram">
         {% endif %}
         <h2>{{ company_details.company_name if company_details else "Company Name" }}</h2>
@@ -14,12 +16,13 @@
         <hr>
         <h3>Monthly Client Payment Summary</h3>
         <p><strong>Period:</strong>
-            {% if filter_month %}{{ month_map[filter_month] }}{% endif %}
-            {% if filter_year %}{{ filter_year }}{% else %}All Time{% endif %}
+            {% if filter_month and filter_month in month_map %}{{ month_map[filter_month] }}{% endif %} {# Added check for filter_month in month_map #}
+            {% if filter_year %}{{ filter_year }}{% elif not filter_month %}All Time{% endif %} {# Adjusted "All Time" display #}
         </p>
     </div>
 
     <form method="get" action="{{ url_for('monthly_client_summary_report') }}" class="filter-form no-print">
+        {# ... (filter form - seems okay) ... #}
         <label for="filter_year">Year:</label>
         <select name="filter_year" id="filter_year">
             <option value="">All Years</option>
@@ -36,9 +39,15 @@
             {% endfor %}
         </select>
 
-        <button type="submit">Filter</button>
-        <button type="button" onclick="window.location.href='{{ url_for('monthly_client_summary_report') }}'">Clear Filters</button>
+        <button type="submit" class="button button-small"><i class="fas fa-filter"></i> Filter</button>
+        <button type="button" class="button button-small" onclick="window.location.href='{{ url_for('monthly_client_summary_report') }}'">Clear Filters</button>
     </form>
+
+    <div class="report-actions no-print" style="margin-bottom: 15px; text-align: right;">
+        {# Add Export to CSV link here if you implement it for this report #}
+        {# <a href="{{ url_for('export_monthly_summary_csv', filter_year=filter_year, filter_month=filter_month) }}" class="button button-small"><i class="fas fa-file-csv"></i> Export CSV</a> #}
+        <button onclick="printReport()" class="button button-small"><i class="fas fa-print"></i> Print Report</button>
+    </div>
 
     {% if summary_data %}
         <table>
@@ -56,11 +65,13 @@
                 {% for item in summary_data %}
                 <tr>
                     <td>{{ item.year }}</td>
-                    <td>{{ month_map[item.month] }}</td>
-                    <td><a href="{{ url_for('client_ledger', client_id=item.client_id, start_date=item.year~'-'~item.month~'-01', end_date=item.year~'-'~item.month~'-'~(31 if item.month in ['01','03','05','07','08','10','12'] else 30 if item.month in ['04','06','09','11'] else 29 if item.year|int % 4 == 0 and item.month == '02' else 28))}}">{{ item.client_name }}</a></td>
-                    <td style="text-align:right;">{{ "%.2f"|format(item.total_debit) }}</td>
-                    <td style="text-align:right;">{{ "%.2f"|format(item.total_credit) }}</td>
-                    <td style="text-align:right;">{{ "%.2f"|format(item.net_change) }}</td>
+                    <td>{{ month_map[item.month] if item.month in month_map else item.month }}</td> {# Safer access to month_map #}
+                    {# The link generation for client_ledger was complex and specific. Let's ensure it's robust #}
+                    {% set month_end_day = 31 if item.month in ['01','03','05','07','08','10','12'] else (30 if item.month in ['04','06','09','11'] else (29 if item.year|int % 4 == 0 and item.month == '02' else 28)) %}
+                    <td><a href="{{ url_for('client_ledger', client_id=item.client_id, start_date=item.year~'-'~item.month~'-01', end_date=item.year~'-'~item.month~'-'~'%02d'|format(month_end_day)) }}">{{ item.client_name }}</a></td>
+                    <td style="text-align:right;">{{ "%.2f"|format(item.total_debit if item.total_debit is not none else 0) }}</td>
+                    <td style="text-align:right;">{{ "%.2f"|format(item.total_credit if item.total_credit is not none else 0) }}</td>
+                    <td style="text-align:right;">{{ "%.2f"|format(item.net_change if item.net_change is not none else 0) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -74,17 +85,13 @@
             </tfoot>
         </table>
     {% else %}
-        <p>No payment summary data found for the selected criteria.</p>
+        <p style="text-align: center; padding:20px;">No payment summary data found for the selected criteria.</p>
     {% endif %}
 
-    <div class="no-print">
-        <button onclick="printReport()">Print Report</button>
-        <p><a href="{{ url_for('index') }}">Back to Home</a></p>
-    </div>
-
     <div class="print-footer">
+        {# ... (print footer content - seems okay) ... #}
         <p>Printed on: {{ "now"|datetimeformat('%Y-%m-%d %H:%M:%S') }}</p>
-        {% if company_details %} {# Added this check for robustness #}
+        {% if company_details %}
         <p>{{ company_details.company_name if company_details.company_name else "Company Name" }} - {{ company_details.address if company_details.address else "Address" }} - {{ company_details.contact_info if company_details.contact_info else "Contact" }}</p>
         {% endif %}
     </div>

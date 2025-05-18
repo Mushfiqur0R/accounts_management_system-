@@ -1,73 +1,125 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard{% endblock %}
-{% block page_header %}Dashboard{% endblock %}
+{% block page_header %}Dashboard{% endblock %} {# This sets the H1 in the main application header #}
 
 {% block content %}
-<h2>Dashboard</h2>
+{# REMOVED the <h2>Dashboard</h2> from here #}
 <style>
+    /* These styles could also be moved to your main style.css for better organization */
     .dashboard-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
+        gap: 20px; /* Consistent gap */
         margin-bottom: 30px;
     }
-    .summary-card {
-        background-color: #f9f9f9;
+    .summary-card.chart-container { .summary-card { /* Applied to all cards including list-sections for consistency */
+        background-color: #fff; /* Changed from #f9f9f9 to match chart-container */
         padding: 20px;
         border-radius: 8px;
-        border: 1px solid #eee;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid var(--border-color); /* Use CSS variable */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.07); /* Consistent shadow */
     }
+    position: relative; /* Important for canvas responsiveness */
+    height: 350px; /* Try a fixed height first */
+    /* or max-height: 400px; */
+    /* padding-bottom: 20px; /* Ensure padding doesn't interfere too much */
+}
+    
     .summary-card h3 {
         margin-top: 0;
         color: #333;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--border-color); /* Use CSS variable */
         padding-bottom: 10px;
         margin-bottom: 15px;
+        font-size: 1.1em; /* Consistent heading size in cards */
+        font-weight: 600;
     }
-    .summary-card p {
-        font-size: 1.5em;
-        color: #007bff;
-        margin: 5px 0;
+    /* Specific styling for the big numbers in summary cards */
+    .summary-card p.detail-value {
+        font-size: 1.8em; /* Made it a class for explicitness */
+        color: var(--primary-color); /* Use CSS variable */
+        margin: 5px 0 10px 0; /* Added bottom margin */
         font-weight: bold;
     }
-    .summary-card .detail {
+    .summary-card p.detail { /* Renamed for clarity */
         font-size: 0.9em;
-        color: #666;
+        color: #6c757d; /* Muted color */
     }
+
+    /* .list-section is now effectively a .summary-card */
     .list-section table {
         font-size: 0.9em;
+        box-shadow: none; /* Remove shadow if card already has one */
+        border: none; /* Remove border if card already has one */
+        margin-bottom: 0; /* Remove table's own bottom margin */
     }
     .list-section table th, .list-section table td {
-        padding: 6px 8px;
+        padding: 8px 10px; /* Slightly more padding */
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid var(--border-color); /* Add top border to rows for separation */
     }
+    .list-section table thead th {
+        border-top: none; /* No top border for header cells */
+    }
+     .list-section table tbody tr:first-child td {
+        border-top: none; /* No top border for first data row if header is present */
+    }
+    .list-section table tbody tr:last-child td {
+        border-bottom: none; /* No bottom border for last data row */
+    }
+
+
     .negative-balance {
-        color: red;
+        color: #dc3545; /* Bootstrap danger red */
+        font-weight: bold;
     }
     .positive-balance {
-        color: green;
+        color: #28a745; /* Bootstrap success green */
+        font-weight: bold;
     }
-</style>
 
-<!-- <h2>Dashboard</h2> -->
+    .chart-container { /* Already a .summary-card effectively */
+        /* background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.07); */
+        /* margin-bottom: 25px; No longer needed if part of the grid with gap */
+        /* min-height: 350px; /* Give charts some minimum height */
+    }
+    /* .chart-container h3 is covered by .summary-card h3 */
+</style>
 
 <div class="dashboard-grid">
     <div class="summary-card">
         <h3>Total Receivables</h3>
-        <p>{{ "%.2f"|format(total_receivables) }}</p>
+        <p class="detail-value">{{ "%.2f"|format(total_receivables) }}</p> {# Added class for styling #}
         <p class="detail">From {{ clients|length }} clients</p>
     </div>
     <div class="summary-card">
         <h3>Conveyance Expenses ({{ current_month_display }})</h3>
-        <p>{{ "%.2f"|format(current_month_conveyance_total) }}</p>
+        <p class="detail-value">{{ "%.2f"|format(current_month_conveyance_total) }}</p> {# Added class for styling #}
         <p class="detail"><a href="{{ url_for('view_conveyance_bills') }}">View All Conveyance</a></p>
     </div>
-    <!-- Add more summary cards as needed -->
 </div>
 
+{# --- Charts Section --- #}
 <div class="dashboard-grid">
-    <div class="list-section summary-card">
+    <div class="summary-card chart-container"> {# Combined classes #}
+        <h3>Top 5 Clients (Receivables)</h3>
+        <canvas id="topClientsChart" style="min-height: 300px; width: 100%;"></canvas> {# Added inline style for min-height #}
+    </div>
+    <div class="summary-card chart-container"> {# Combined classes #}
+        <h3>Monthly Conveyance Expenses (Last 6 Months)</h3>
+        <canvas id="monthlyExpensesChart" style="min-height: 300px; width: 100%;"></canvas> {# Added inline style for min-height #}
+    </div>
+</div>
+
+{# --- Recent Activity Lists --- #}
+<div class="dashboard-grid">
+    <div class="summary-card list-section"> {# Combined classes #}
         <h3>Recent Transactions</h3>
         {% if recent_transactions %}
             <table>
@@ -83,21 +135,21 @@
                 <tbody>
                     {% for trx in recent_transactions %}
                     <tr>
-                        <td>{{ trx.transaction_date|datetimeformat('%d-%b-%Y') }}</td>
+                        <td>{{ trx.transaction_date|datetimeformat('%d-%b-%y') }}</td> {# Shortened year #}
                         <td><a href="{{ url_for('client_ledger', client_id=trx.client_id) }}">{{ trx.client_name }}</a></td>
-                        <td>{{ trx.narration[:30] if trx.narration else 'N/A' }}{{ '...' if trx.narration and trx.narration|length > 30 }}</td>
-                        <td style="text-align:right;">{{ "%.2f"|format(trx.debit) if trx.debit else '' }}</td>
-                        <td style="text-align:right;">{{ "%.2f"|format(trx.credit) if trx.credit else '' }}</td>
+                        <td>{{ trx.narration[:25] if trx.narration else 'N/A' }}{{ '...' if trx.narration and trx.narration|length > 25 }}</td> {# Shorter still #}
+                        <td style="text-align:right;">{{ "%.2f"|format(trx.debit) if trx.debit and trx.debit != 0 else '' }}</td>
+                        <td style="text-align:right;">{{ "%.2f"|format(trx.credit) if trx.credit and trx.credit != 0 else '' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         {% else %}
-            <p>No recent transactions.</p>
+            <p style="text-align: center; padding: 20px;">No recent transactions.</p>
         {% endif %}
     </div>
 
-    <div class="list-section summary-card">
+    <div class="summary-card list-section"> {# Combined classes #}
         <h3>Recent Conveyance Bills</h3>
         {% if recent_conveyance_bills %}
             <table>
@@ -112,23 +164,26 @@
                 <tbody>
                     {% for bill in recent_conveyance_bills %}
                     <tr>
-                        <td>{{ bill.bill_date|datetimeformat('%d-%b-%Y') }}</td>
+                        <td>{{ bill.bill_date|datetimeformat('%d-%b-%y') }}</td> {# Shortened year #}
                         <td>{{ bill.person_name }}</td>
-                        <td>{{ bill.purpose[:30] if bill.purpose else 'N/A' }}{{ '...' if bill.purpose and bill.purpose|length > 30 }}</td>
+                        <td>{{ bill.purpose[:25] if bill.purpose else 'N/A' }}{{ '...' if bill.purpose and bill.purpose|length > 25 }}</td> {# Shorter still #}
                         <td style="text-align:right;">{{ "%.2f"|format(bill.amount) }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         {% else %}
-            <p>No recent conveyance bills.</p>
+            <p style="text-align: center; padding: 20px;">No recent conveyance bills.</p>
         {% endif %}
     </div>
 </div>
 
-
-<div class="list-section summary-card" style="grid-column: 1 / -1;"> {# Make client list span full width #}
-    <h3>Client Balances (Debtors)</h3>
+{# --- Client Balances List --- #}
+<div class="summary-card list-section" style="grid-column: 1 / -1;"> {# Make client list span full width #}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3>Client Balances (Debtors)</h3>
+        <a href="{{ url_for('export_clients_csv') }}" class="button button-small no-print"><i class="fas fa-file-csv"></i> Export Clients CSV</a>
+    </div>
     {% if clients %}
         <table>
             <thead>
@@ -162,9 +217,95 @@
             </tbody>
         </table>
     {% else %}
-        <p>No clients found. <a href="{{ url_for('add_client') }}">Add one now!</a></p>
+        <p style="text-align: center; padding: 20px;">No clients found. <a href="{{ url_for('add_client') }}">Add one now!</a></p>
     {% endif %}
     <p class="no-print" style="margin-top:15px;"><a href="{{ url_for('add_client') }}" class="button">Add New Client</a></p>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Data from Flask template
+    const topClientsLabels = {{ top_clients_labels|tojson }};
+    const topClientsValues = {{ top_clients_values|tojson }};
+    const monthlyExpensesLabels = {{ monthly_expenses_labels|tojson }};
+    const monthlyExpensesValues = {{ monthly_expenses_values|tojson }};
+
+    // Top Clients Bar Chart
+    const topClientsCtx = document.getElementById('topClientsChart');
+    if (topClientsCtx && topClientsLabels.length > 0) {
+        new Chart(topClientsCtx, {
+            type: 'bar',
+            data: {
+                labels: topClientsLabels,
+                datasets: [{
+                    label: 'Balance Receivable',
+                    data: topClientsValues,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)', // Blue
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4 // Rounded bars
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false, // Important for custom height
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) { return value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits:0}); }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    } else if (topClientsCtx) {
+        topClientsCtx.parentElement.innerHTML += '<p style="text-align:center; padding:20px;">No client receivables data to display.</p>';
+        topClientsCtx.style.display = 'none'; // Hide canvas if no data
+    }
+
+
+    // Monthly Conveyance Expenses Line Chart
+    const monthlyExpensesCtx = document.getElementById('monthlyExpensesChart');
+    if (monthlyExpensesCtx && monthlyExpensesLabels.length > 0 && monthlyExpensesValues.some(v => v > 0)) { // Check if there are any values > 0
+        new Chart(monthlyExpensesCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyExpensesLabels,
+                datasets: [{
+                    label: 'Total Expenses',
+                    data: monthlyExpensesValues,
+                    borderColor: 'rgba(255, 99, 132, 1)', // Red
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    tension: 0.2,
+                    fill: true,
+                    pointRadius: 4, // Make points visible
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false, // Important for custom height
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) { return value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits:0}); }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: true, position: 'bottom' }
+                }
+            }
+        });
+    } else if (monthlyExpensesCtx) {
+         monthlyExpensesCtx.parentElement.innerHTML += '<p style="text-align:center; padding:20px;">No significant monthly expense data to display for the last 6 months.</p>';
+         monthlyExpensesCtx.style.display = 'none'; // Hide canvas if no data
+    }
+});
+</script>
 {% endblock %}

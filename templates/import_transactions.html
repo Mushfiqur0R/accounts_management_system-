@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Import Transactions from CSV{% endblock %}
+{% block page_header %}Import Transactions CSV{% endblock %}
+
+{% block content %}
+<div class="summary-card">
+    <h3>Upload Transaction Data</h3>
+    <p>Please upload a CSV file with the following columns (order matters for this basic import, but column names are checked):</p>
+    <ol>
+        <li><strong>Client Name</strong> (Must match an existing client name exactly)</li>
+        <li><strong>Date</strong> (Format: YYYY-MM-DD)</li>
+        <li><strong>Fabrics Type</strong> (Optional)</li>
+        <li><strong>Design Code</strong> (Optional)</li>
+        <li><strong>Qty</strong> (Optional, numeric)</li>
+        <li><strong>Transaction Mode</strong> (e.g., Cash, Cheque)</li>
+        <li><strong>Narration</strong> (Optional)</li>
+        <li><strong>Chq No.</strong> (Optional)</li>
+        <li><strong>Challan/Voucher No.</strong> (Optional)</li>
+        <li><strong>Debit</strong> (Numeric, use 0 if not applicable)</li>
+        <li><strong>Credit</strong> (Numeric, use 0 if not applicable)</li>
+    </ol>
+    <p><strong>Important:</strong> Ensure column headers in your CSV match these names (case-insensitive, spaces are okay).</p>
+
+    <form method="post" enctype="multipart/form-data">
+        <div>
+            <label for="file">Select CSV File:</label>
+            <input type="file" name="file" id="file" accept=".csv" required>
+        </div>
+        <div>
+            <button type="submit" class="button">Upload and Import</button>
+        </div>
+    </form>
+</div>
+
+<div class="summary-card" style="margin-top: 20px;">
+    <h4>Notes:</h4>
+    <ul>
+        <li>Transactions will be linked to clients based on 'Client Name'. If a client is not found, the row will be skipped.</li>
+        <li>Basic validation is performed. Rows with missing critical data or formatting issues will be skipped.</li>
+        <li>A summary of imported and skipped rows will be shown after processing.</li>
+        <li>For large files, this process might take some time.</li>
+        <li>There is a basic check for potential duplicate transactions, but ensure your data is clean.</li>
+    </ul>
+</div>
+{% endblock %}

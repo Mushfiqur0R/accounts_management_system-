@@ -1,120 +1,120 @@
 {% extends "base.html" %}
 
-{% block title %}Ledger for {{ client.name }}{% endblock %}
+{% block title %}Ledger for {{ client.name if client else 'Unknown Client' }}{% endblock %} {# Added fallback for title #}
+{% block page_header %}Ledger for {{ client.name if client else 'Unknown Client' }}{% endblock %} {# Added fallback for header #}
 
 {% block content %}
-<div class="report-container">
-    <div class="print-header">
-        {% if company_details and company_details.monogram_path %}
+<div class="report-container summary-card"> {# Added summary-card for consistent page styling #}
+
+    <div class="print-header"> {# This will be handled by print CSS #}
+        {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
             <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Company Monogram" class="monogram">
         {% endif %}
         <h2>{{ company_details.company_name if company_details else "Company Name" }}</h2>
         <p>{{ company_details.address if company_details else "Company Address" }}</p>
         <p>{{ company_details.contact_info if company_details else "Contact Info" }}</p>
         <hr>
-        <!-- <h3>Debtors Ledger</h3> -->
+        <h3>Debtors Ledger</h3> {# Usually good to have this title for print #}
+        {% if client %} {# Check if client object exists before accessing attributes #}
         <p><strong>Account Name:</strong> {{ client.name }}</p>
         <p><strong>Contact Number:</strong> {{ client.contact_number if client.contact_number else 'N/A' }}</p>
+        {% endif %}
         <p><strong>Period:</strong>
             {% if start_date %}{{ start_date }}{% else %}Beginning{% endif %} to {{ end_date }}
         </p>
     </div>
 
-    <form method="get" action="{{ url_for('client_ledger', client_id=client.id) }}" class="filter-form no-print">
+    <form method="get" action="{{ url_for('client_ledger', client_id=client.id if client else '') }}" class="filter-form no-print">
         <label for="start_date">From:</label>
         <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
         <label for="end_date">To:</label>
         <input type="date" name="end_date" id="end_date" value="{{ end_date }}">
-        <button type="submit">Filter</button>
-        <button type="button" onclick="window.location.href='{{ url_for('client_ledger', client_id=client.id) }}'">Clear Filters</button>
+        <button type="submit" class="button button-small"><i class="fas fa-filter"></i> Filter</button>
+        <button type="button" class="button button-small" onclick="window.location.href='{{ url_for('client_ledger', client_id=client.id if client else '') }}'">Clear Filters</button>
     </form>
 
+    <div class="report-actions no-print" style="margin-bottom: 15px; text-align: right;">
+        <a href="{{ url_for('export_client_ledger_csv', client_id=client.id if client else '', start_date=start_date, end_date=end_date) }}" class="button button-small">
+            <i class="fas fa-file-csv"></i> Export Ledger CSV
+        </a>
+        <button onclick="printReport()" class="button button-small"><i class="fas fa-print"></i> Print Ledger</button>
+    </div>
+
     {% if transactions %}
-    {# ... in client_ledger.html ... #}
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Fabrics</th>
-                <th>Design</th>
-                <th>Qty</th>
-                <th>Mode</th>
-                <th>Narration</th>
-                <th>Chq No.</th>
-                <th>Voucher No.</th>
-                <th>Debit</th>
-                <th>Credit</th>
-                <th>Balance</th>
-                <th class="no-print">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if start_date and opening_balance != 0 %} {# Only show OB if it's not zero and filtered #}
-            <tr>
-                <td colspan="10" style="text-align:right;"><strong>Opening Balance</strong></td> {# Debit, Credit, Balance, Actions cells #}
-                <td style="text-align:right;"><strong>{{ "%.2f"|format(opening_balance) }}</strong></td>
-                <td class="no-print"></td> {# Empty cell for actions #}
-            </tr>
-            {% endif %}
-            {% for trx in transactions %}
-            <tr>
-                <td>{{ trx.transaction_date }}</td>
-                <td>{{ trx.fabrics_type if trx.fabrics_type else '' }}</td>
-                <td>{{ trx.design_code if trx.design_code else '' }}</td>
-                <td>{{ trx.qty if trx.qty is not none else '' }}</td>
-                <td>{{ trx.transaction_mode }}</td>
-                <td>{{ trx.narration if trx.narration else '' }}</td>
-                <td>{{ trx.chq_no if trx.chq_no else '' }}</td>
-                <td>{{ trx.challan_voucher_no if trx.challan_voucher_no else '' }}</td>
-                <td style="text-align:right;">{{ "%.2f"|format(trx.debit) if trx.debit else '' }}</td>
-                <td style="text-align:right;">{{ "%.2f"|format(trx.credit) if trx.credit else '' }}</td>
-                <td style="text-align:right;">{{ "%.2f"|format(trx.running_balance) }}</td>
-                <td class="no-print">
-                    <a href="{{ url_for('edit_transaction', transaction_id=trx.id) }}">Edit</a>
-                    {% if current_user.is_admin %} {# Only show delete to admins #}
-                    | <form method="post" action="{{ url_for('delete_transaction', transaction_id=trx.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this transaction? This cannot be undone.');">
-                        <button type="submit" class="link-button delete-button">Delete</button>
-                    </form>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        <tfoot>
-            <tr>
-                {# Date, Fabrics, Design, Qty, Mode, Narration, Chq No., Voucher No. = 8 columns for text #}
-                <td colspan="8" style="text-align:right;"><strong>Totals for Period:</strong></td>
-                <td style="text-align:right;"><strong>{{ "%.2f"|format(total_debit) }}</strong></td>
-                <td style="text-align:right;"><strong>{{ "%.2f"|format(total_credit) }}</strong></td>
-                <td></td> {# Balance column placeholder #}
-                <td class="no-print"></td> {# Actions column placeholder #}
-            </tr>
-            <tr>
-                {# Date to Credit = 10 columns for text #}
-                <td colspan="10" style="text-align:right;"><strong>Closing Balance (as of {{ end_date }}):</strong></td>
-                <td style="text-align:right;"><strong>{{ "%.2f"|format(closing_balance) }}</strong></td>
-                <td class="no-print"></td> {# Actions column placeholder #}
-            </tr>
-        </tfoot>
-    </table>
-{# ... #}
+        <table>
+            {# ... table headers and body ... as you have them ... #}
+            <thead>
+                <tr>
+                    <th>Date</th><th>Fabrics</th><th>Design</th><th>Qty</th><th>Mode</th>
+                    <th>Narration</th><th>Chq No.</th><th>Voucher No.</th>
+                    <th style="text-align:right;">Debit</th><th style="text-align:right;">Credit</th><th style="text-align:right;">Balance</th>
+                    <th class="no-print">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if start_date and opening_balance != 0 %}
+                <tr>
+                    <td colspan="10" style="text-align:right;"><strong>Opening Balance</strong></td>
+                    <td style="text-align:right;"><strong>{{ "%.2f"|format(opening_balance) }}</strong></td>
+                    <td class="no-print"></td>
+                </tr>
+                {% endif %}
+                {% for trx in transactions %}
+                <tr>
+                    <td>{{ trx.transaction_date }}</td>
+                    <td>{{ trx.fabrics_type if trx.fabrics_type else '' }}</td>
+                    <td>{{ trx.design_code if trx.design_code else '' }}</td>
+                    <td>{{ trx.qty if trx.qty is not none else '' }}</td>
+                    <td>{{ trx.transaction_mode }}</td>
+                    <td>{{ trx.narration if trx.narration else '' }}</td>
+                    <td>{{ trx.chq_no if trx.chq_no else '' }}</td>
+                    <td>{{ trx.challan_voucher_no if trx.challan_voucher_no else '' }}</td>
+                    <td style="text-align:right;">{{ "%.2f"|format(trx.debit if trx.debit is not none else 0) }}</td>
+                    <td style="text-align:right;">{{ "%.2f"|format(trx.credit if trx.credit is not none else 0) }}</td>
+                    <td style="text-align:right;">{{ "%.2f"|format(trx.running_balance if trx.running_balance is not none else 0) }}</td>
+                    <td class="no-print">
+                        <a href="{{ url_for('edit_transaction', transaction_id=trx.id) }}">Edit</a>
+                        {% if current_user.is_admin %}
+                        | <form method="post" action="{{ url_for('delete_transaction', transaction_id=trx.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this transaction? This cannot be undone.');">
+                            <button type="submit" class="link-button delete-button">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="8" style="text-align:right;"><strong>Totals for Period:</strong></td>
+                    <td style="text-align:right;"><strong>{{ "%.2f"|format(total_debit) }}</strong></td>
+                    <td style="text-align:right;"><strong>{{ "%.2f"|format(total_credit) }}</strong></td>
+                    <td></td>
+                    <td class="no-print"></td>
+                </tr>
+                <tr>
+                    <td colspan="10" style="text-align:right;"><strong>Closing Balance (as of {{ end_date }}):</strong></td>
+                    <td style="text-align:right;"><strong>{{ "%.2f"|format(closing_balance) }}</strong></td>
+                    <td class="no-print"></td>
+                </tr>
+            </tfoot>
+        </table>
     {% else %}
-        <p>No transactions found for this period.</p>
-        {% if not start_date %} <!-- Only show opening balance if no transactions and no start_date filter -->
+        <p style="text-align:center; padding:20px;">No transactions found for this period.</p>
+        {% if not start_date and (opening_balance != 0 or closing_balance !=0) %} {# Show OB/CB if no transactions and no start filter AND balances are non-zero #}
             <p>Opening Balance: {{ "%.2f"|format(opening_balance) }}</p>
             <p>Closing Balance: {{ "%.2f"|format(closing_balance) }}</p>
         {% endif %}
     {% endif %}
 
-    <div class="no-print">
-        <a href="{{ url_for('add_transaction', client_id=client.id) }}" class="button">Add New Transaction</a>
-        <button onclick="printReport()">Print Ledger</button>
-        <p><a href="{{ url_for('index') }}">Back to Client List</a></p>
+    <div class="no-print" style="margin-top: 20px;">
+        <a href="{{ url_for('add_transaction', client_id=client.id if client else '') }}" class="button">Add New Transaction</a>
+        {# Removed redundant Print Ledger button, use one from report-actions #}
+        <p><a href="{{ url_for('index') }}">Back to Dashboard</a></p> {# Updated link text #}
     </div>
 
-    <div class="print-footer">
+    <div class="print-footer"> {# This will be handled by print CSS #}
         <p>Printed on: {{ "now"|datetimeformat('%Y-%m-%d %H:%M:%S') }}</p>
-        {% if company_details %} {# Added this check for robustness #}
+        {% if company_details %}
         <p>{{ company_details.company_name if company_details.company_name else "Company Name" }} - {{ company_details.address if company_details.address else "Address" }} - {{ company_details.contact_info if company_details.contact_info else "Contact" }}</p>
         {% endif %}
     </div>

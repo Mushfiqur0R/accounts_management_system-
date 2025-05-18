@@ -4,6 +4,24 @@
 
 {% block content %}
 <div class="report-container">
+    <div class="report-actions no-print" style="margin-bottom: 15px; text-align: right;">
+        <a href="{{ url_for('export_conveyance_bills_csv', filter_date_from=filter_date_from, filter_date_to=filter_date_to, filter_person_name=filter_person_name) }}" class="button button-small">
+            <i class="fas fa-file-csv"></i> Export Bills CSV
+        </a>
+        <button onclick="printReport()" class="button button-small"><i class="fas fa-print"></i> Print Report</button>
+    </div>
+
+
+    {% if bills %}
+        {# ... table ... #}
+    {% else %}
+        {# ... no bills message ... #}
+    {% endif %}
+
+    <div class="no-print" style="margin-top: 20px;">
+        <a href="{{ url_for('add_conveyance') }}" class="button">Add New Conveyance Bill</a>
+        <p><a href="{{ url_for('index') }}">Back to Dashboard</a></p> {# Changed to Dashboard #}
+    </div>
     <div class="print-header">
         {% if company_details and company_details.monogram_path %}
             <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Company Monogram" class="monogram">
