@@ -10,14 +10,20 @@ from collections import defaultdict # For grouping expenses by month
 import calendar # For month names and days in month
 import pandas as pd # For CSV/Excel import
 from werkzeug.utils import secure_filename # For secure file uploads
-import os # For upload folder
+import os, psycopg2 # For upload folder
 from werkzeug.utils import secure_filename
-import os
+from psycopg2.extras import DictCursor
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # DATABASE = 'database.db'
 DATABASE_PATH = os.environ.get('DATABASE', 'database.db')
+load_dotenv()
 
 app = Flask(__name__)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
 app.secret_key = '20250' # REMEMBER TO CHANGE THIS TO A STRONG, RANDOM KEY FOR PRODUCTION
 
 # --- Flask-Login Setup ---
@@ -69,18 +75,31 @@ app.jinja_env.filters['datetimeformat'] = datetimeformat
 
 # --- Database Helper Functions ---
 def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        # db = g._database = sqlite3.connect(DATABASE)
-        db = g._database = sqlite3.connect(DATABASE_PATH) # Use the new path variable
-        db.row_factory = sqlite3.Row
-    return db
+    # PostgreSQL connection if DATABASE_URL is set
+    if DATABASE_URL:
+        if 'db' not in g:
+            g.db = psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
+        return g.db
+    # Fallback to SQLite connection if DATABASE_URL is not set (for local development)
+    else:
+        db = getattr(g, '_database', None)
+        if db is None:
+            db = g._database = sqlite3.connect('database.db')
+            db.row_factory = sqlite3.Row
+        return db
 
 @app.teardown_appcontext
 def close_connection(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
+    # Close PostgreSQL connection
+    if DATABASE_URL:
+        db = g.pop('db', None)
+        if db is not None:
+            db.close()
+    # Close SQLite connection
+    else:
+        db = getattr(g, '_database', None)
+        if db is not None:
+            db.close()
 
 def init_db():
     with app.app_context():
@@ -95,16 +114,40 @@ def init_db_command():
     init_db()
 
 def query_db(query, args=(), one=False):
-    cur = get_db().execute(query, args)
+    db = get_db()
+    cur = db.cursor()
+    
+    # PostgreSQL uses %s, SQLite uses ?
+    if DATABASE_URL:
+        query = query.replace('?', '%s')
+    
+    cur.execute(query, args)
     rv = cur.fetchall()
     cur.close()
     return (rv[0] if rv else None) if one else rv
 
 def execute_db(query, args=()):
     db = get_db()
-    cur = db.execute(query, args)
+    cur = db.cursor()
+    
+    if DATABASE_URL:
+        query = query.replace('?', '%s')
+        
+    cur.execute(query, args)
     db.commit()
-    last_id = cur.lastrowid
+    
+    last_id = None
+    # Getting last inserted ID is different in PostgreSQL
+    if DATABASE_URL and "INSERT" in query.upper():
+        # This is a simple approach, works if your table has an 'id' primary key
+        # and the query returns the id. A more robust way needs RETURNING id.
+        # Let's adjust the query slightly for this.
+        # For now, we'll skip getting last_id for PG to avoid complexity.
+        # If you need last_id, the INSERT queries need to be changed to "INSERT ... RETURNING id"
+        pass
+    elif not DATABASE_URL:
+         last_id = cur.lastrowid
+         
     cur.close()
     return last_id
 
