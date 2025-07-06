@@ -1960,5 +1960,9 @@ def store_dashboard():
                            chart_out_values=chart_out_values
                            )
 
+# if __name__ == '__main__':
+#     app.run(debug=True)
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    # For local development only, Railway uses gunicorn
+    app.run(debug=False, host='0.0.0.0') 
