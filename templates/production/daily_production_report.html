@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Production Report{% endblock %}
+{% block page_header %}Daily Production Report{% endblock %}
+
+{% block content %}
+<div class="summary-card no-print">
+    <h3>Add New Production Entry</h3>
+    <form method="post" action="{{ url_for('daily_production_report') }}">
+        <div class="form-grid-2col">
+            <div>
+                <label for="production_date">Date:</label>
+                <input type="date" id="production_date" name="production_date" value="{{ form_data.production_date if form_data else default_date_form }}" required>
+            </div>
+            <div>
+                <label for="machine_number">Machine Number:</label>
+                <input type="text" id="machine_number" name="machine_number" value="{{ form_data.machine_number if form_data else '' }}" list="machine_list" required>
+                <datalist id="machine_list">
+                    <option value="1"><option value="2"><option value="3"><option value="4">
+                </datalist>
+            </div>
+            <div>
+                <label for="design_number">Design Number:</label>
+                <input type="text" id="design_number" name="design_number" value="{{ form_data.design_number if form_data else '' }}" required>
+            </div>
+            <div>
+                <label for="client_name_form">Client Name (for new entry):</label>
+                <input type="text" id="client_name_form" name="client_name" value="{{ form_data.client_name if form_data else '' }}">
+            </div>
+            <div>
+                <label for="total_production">Total Production:</label>
+                <input type="number" step="any" id="total_production" name="total_production" value="{{ form_data.total_production if form_data else '' }}" required>
+            </div>
+            <div>
+                <label for="production_unit">Unit:</label>
+                <select id="production_unit" name="production_unit">
+                    <option value="yards" {% if (form_data.production_unit if form_data else 'yards') == 'yards' %}selected{% endif %}>Yards</option>
+                    <option value="meters" {% if (form_data.production_unit if form_data else '') == 'meters' %}selected{% endif %}>Meters</option>
+                </select>
+            </div>
+        </div>
+        <div style="margin-top: 15px;">
+            <button type="submit" class="button"><i class="fas fa-plus"></i> Add Entry</button>
+        </div>
+    </form>
+</div>
+
+<div class="summary-card" style="margin-top: 25px;">
+    <h3>Production Entries</h3>
+    <form method="get" action="{{ url_for('daily_production_report') }}" class="filter-form no-print">
+        <div>
+            <label for="filter_specific_date">Specific Date:</label>
+            <input type="date" name="filter_specific_date" id="filter_specific_date" value="{{ filter_specific_date }}">
+        </div>
+        <div>
+            <label for="filter_year">Or Year:</label>
+            <select name="filter_year" id="filter_year">
+                <option value="">All Years</option>
+                {% for yr in distinct_years_for_filter %}
+                    <option value="{{ yr.year }}" {% if yr.year == filter_year %}selected{% endif %}>{{ yr.year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="filter_client_name">Client Name:</label>
+            <input type="text" name="filter_client_name" id="filter_client_name" value="{{ filter_client_name }}" list="client_names_datalist" placeholder="Type or select client">
+            <datalist id="client_names_datalist">
+                {% for client_filter_item in distinct_clients_for_filter %}
+                    <option value="{{ client_filter_item.client_name }}">
+                {% endfor %}
+            </datalist>
+        </div>
+        <div style="align-self: flex-end;">
+            <button type="submit" class="button button-small"><i class="fas fa-filter"></i> Filter</button>
+            <a href="{{ url_for('daily_production_report') }}" class="button button-small">Clear Filters</a>
+        </div>
+    </form>
+
+    <div class="report-actions no-print" style="margin-top: 10px; margin-bottom: 15px; text-align: right;">
+        <a href="{{ url_for('export_production_csv', filter_specific_date=filter_specific_date, filter_client_name=filter_client_name, filter_year=filter_year) }}" class="button button-small"><i class="fas fa-file-csv"></i> Export CSV</a>
+        <a href="{{ url_for('export_production_pdf', filter_specific_date=filter_specific_date, filter_client_name=filter_client_name, filter_year=filter_year) }}" class="button button-small"><i class="fas fa-file-pdf"></i> Export PDF</a>
+        <button onclick="printReport()" class="button button-small"><i class="fas fa-print"></i> Print Report</button>
+    </div>
+
+    <div class="print-header">
+         {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
+            <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Monogram" class="monogram">
+        {% endif %}
+        <h2>{{ company_details.company_name if company_details and company_details.company_name else "Company Name" }}</h2>
+        {% if company_details %}
+        <p>{{ company_details.address if company_details.address else "Company Address" }}</p>
+        <p>{{ company_details.contact_info if company_details.contact_info else "Contact Info" }}</p>
+        {% endif %}
+        <h3>Daily Production Report</h3>
+        <p>
+            <strong>Period/Client:</strong>
+            {% if filter_specific_date %}
+                Date: {{ filter_specific_date|datetimeformat('%d-%b-%Y') }}
+            {% elif filter_year %}
+                Year: {{ filter_year }}
+            {% else %}
+                All Time
+            {% endif %}
+            {% if filter_client_name %}
+                , Client: {{ filter_client_name }}
+            {% endif %}
+        </p>
+        <hr>
+    </div>
+
+    {% if production_entries %}
+    <table class="list-section">
+        <thead>
+            <tr>
+                <th>Date</th> <th>Machine No.</th> <th>Design No.</th>
+                <th>Client Name</th> <th style="text-align:right;">Total Production</th> <th>Unit</th>
+                <th class="no-print">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in production_entries %}
+            <tr>
+                <td>{{ entry.production_date|datetimeformat('%d-%b-%Y') }}</td>
+                <td>{{ entry.machine_number }}</td>
+                <td>{{ entry.design_number }}</td>
+                <td>{{ entry.client_name if entry.client_name else 'N/A' }}</td>
+                <td style="text-align:right;">{{ "%.2f"|format(entry.total_production) }}</td>
+                <td>{{ entry.production_unit }}</td>
+                <td class="no-print">
+                    <a href="{{ url_for('edit_production_entry', entry_id=entry.id) }}" class="link-button" title="Edit">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    {% if current_user.is_admin %} {# Delete only for admins #}
+                    <span style="margin: 0 3px;">|</span> {# Visual separator #}
+                    <form method="post" action="{{ url_for('delete_production_entry', entry_id=entry.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this production entry? This action cannot be undone.');">
+                        <button type="submit" class="link-button delete-button" title="Delete">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align:center; padding:20px;">No production entries found for the selected criteria.</p>
+    {% endif %}
+</div>
+<div class="print-footer">
+    <p>Printed on: {{ "now"|datetimeformat('%Y-%m-%d %H:%M:%S') }}</p>
+</div>
+{% endblock %}

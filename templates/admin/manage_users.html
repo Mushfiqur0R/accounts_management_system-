@@ -3,43 +3,103 @@
 {% block title %}Manage Users{% endblock %}
 {% block page_header %}Manage Users{% endblock %}
 
-
 {% block content %}
-<!-- <h2>Manage Users</h2> -->
-<p><a href="{{ url_for('add_user_admin') }}" class="button">Add New User</a></p>
+<style>
+    .user-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    .user-card {
+        background: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.07);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .user-card-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 15px;
+    }
+    .user-card-header i {
+        font-size: 2em;
+        color: var(--primary-color);
+    }
+    .user-card-header .user-name {
+        font-size: 1.2em;
+        font-weight: 600;
+        margin: 0;
+    }
+    .user-card-header .user-role {
+        font-size: 0.9em;
+        color: #fff;
+        background-color: #6c757d; /* Muted gray */
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    .user-card-header .user-role.admin {
+        background-color: var(--primary-color);
+    }
+    .user-card-info p {
+        font-size: 0.9em;
+        color: #555;
+        margin-bottom: 5px;
+    }
+    .user-card-actions {
+        margin-top: 20px;
+        text-align: right;
+    }
+</style>
+
+<div class="no-print" style="margin-bottom: 25px;">
+    <a href="{{ url_for('add_user_admin') }}" class="button"><i class="fas fa-user-plus"></i> Add New User</a>
+</div>
 
 {% if users %}
-<table>
-    <thead>
-        <tr>
-            <th>Username</th>
-            <th>Is Admin?</th>
-            <th>Created At</th>
-            <th class="no-print">Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for user_item in users %} {# Renamed user to user_item to avoid conflict #}
-        <tr>
-            <td>{{ user_item.username }}</td>
-            <td>{{ "Yes" if user_item.is_admin else "No" }}</td>
-            <td>{{ user_item.created_at|datetimeformat('%Y-%m-%d') }}</td>
-            <td class="no-print">
-                {% if user_item.id != current_user.id %} {# Don't allow deleting self directly from list #}
-                <form method="post" action="{{ url_for('delete_user_admin', user_id=user_item.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete user {{ user_item.username }}? This cannot be undone.');">
-                    <button type="submit" class="link-button delete-button">Delete</button>
-                </form>
-                {% else %}
-                (Current User)
-                {% endif %}
-                {# Add Edit User link here later if implemented #}
-                {# | <a href="{{ url_for('edit_user_admin', user_id=user_item.id) }}">Edit</a> #}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="user-grid">
+    {% for user_item in users %}
+    <div class="user-card">
+        <div>
+            <div class="user-card-header">
+                <i class="fas fa-user-circle"></i>
+                <div>
+                    <h4 class="user-name">{{ user_item.username }}</h4>
+                    <span class="user-role {{ 'admin' if user_item.is_admin }}">{{ "Admin" if user_item.is_admin else "User" }}</span>
+                </div>
+            </div>
+            <div class="user-card-info">
+                <p><strong>Created:</strong> {{ user_item.created_at|datetimeformat('%d-%b-%Y') }}</p>
+                <p><strong>User ID:</strong> {{ user_item.id }}</p>
+            </div>
+        </div>
+        <div class="user-card-actions">
+            <a href="{{ url_for('edit_user_admin', user_id=user_item.id) }}" class="link-button" title="Edit User"><i class="fas fa-edit"></i> Edit</a>
+            
+            {# Do not allow deleting self or primary admin (ID 1) #}
+            {% if user_item.id != current_user.id and user_item.id != 1 %}
+            <span style="margin: 0 5px;">|</span>
+            <form method="post" action="{{ url_for('delete_user_admin', user_id=user_item.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete user {{ user_item.username }}? This action cannot be undone.');">
+                <button type="submit" class="link-button delete-button" title="Delete User">
+                    <i class="fas fa-trash-alt"></i> Delete
+                </button>
+            </form>
+            {% elif user_item.id == 1 %}
+                <span style="margin-left: 10px; font-size: 0.8em; color: #999;">(Primary Admin)</span>
+            {% else %}
+                 <span style="margin-left: 10px; font-size: 0.8em; color: #999;">(You)</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% else %}
-<p>No users found (besides potentially yourself).</p>
+    <p style="text-align:center; padding:20px;">No other users found.</p>
 {% endif %}
 {% endblock %}

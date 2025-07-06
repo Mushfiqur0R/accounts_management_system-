@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Transactions Log{% endblock %}
+{% block page_header %}Inventory Transactions Log{% endblock %}
+
+{% block content %}
+<div class="summary-card no-print">
+    <h3>Filter Transactions</h3>
+    <form method="get" action="{{ url_for('inventory_transactions_list') }}" class="filter-form no-print">
+        {# Date From #}
+        <div>
+            <label for="filter_date_from">From Date:</label>
+            <input type="date" name="filter_date_from" id="filter_date_from" value="{{ filter_date_from }}">
+        </div>
+        {# Date To #}
+        <div>
+            <label for="filter_date_to">To Date:</label>
+            <input type="date" name="filter_date_to" id="filter_date_to" value="{{ filter_date_to }}">
+        </div>
+        {# Transaction Type #}
+        <div>
+            <label for="filter_transaction_type">Type (IN/OUT):</label>
+            <select name="filter_transaction_type" id="filter_transaction_type">
+                <option value="">All</option>
+                <option value="IN" {% if filter_transaction_type == 'IN' %}selected{% endif %}>IN (Received)</option>
+                <option value="OUT" {% if filter_transaction_type == 'OUT' %}selected{% endif %}>OUT (Issued)</option>
+            </select>
+        </div>
+        {# Product Type #}
+        <div>
+            <label for="filter_product_type">Product Type:</label>
+            <select name="filter_product_type" id="filter_product_type">
+                <option value="">All Product Types</option>
+                {% for pt_opt_str in product_type_options %} {# Changed to pt_opt_str #}
+                <option value="{{ pt_opt_str }}" {% if filter_product_type == pt_opt_str %}selected{% endif %}>{{ pt_opt_str }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {# Sub Type #}
+        <div>
+            <label for="filter_sub_type">Sub-Type Contains:</label>
+            <input type="text" name="filter_sub_type" id="filter_sub_type" value="{{ filter_sub_type }}" placeholder="e.g., Linen, Red Dye">
+        </div>
+        {# Client Name #}
+        <div>
+            <label for="filter_client_name">Client/Source Contains:</label>
+            <input type="text" name="filter_client_name" id="filter_client_name" value="{{ filter_client_name }}">
+        </div>
+        {# Buttons #}
+        <div style="align-self: flex-end;">
+            <button type="submit" class="button button-small"><i class="fas fa-filter"></i> Filter</button>
+            <a href="{{ url_for('inventory_transactions_list') }}" class="button button-small">Clear Filters</a>
+        </div>
+    </form>
+</div>
+
+<div class="summary-card" style="margin-top: 25px;">
+    <h3>Transaction Log</h3>
+    <div class="report-actions no-print" style="margin-top: 10px; margin-bottom: 15px; text-align: right;">
+        {# Add Export CSV/PDF for transactions list later #}
+        <button onclick="printReport()" class="button button-small"><i class="fas fa-print"></i> Print Log</button>
+    </div>
+
+    <div class="print-header">
+         {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
+            <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Monogram" class="monogram">
+        {% endif %}
+        <h2>{{ company_details.company_name if company_details and company_details.company_name else "Company Name" }}</h2>
+        {# Ensure address and contact are included #}
+        {% if company_details %}
+        <p>{{ company_details.address if company_details.address else "Company Address" }}</p>
+        <p>{{ company_details.contact_info if company_details.contact_info else "Contact Info" }}</p>
+        {% endif %}
+        <h3>Inventory Transaction Log</h3>
+        {# ... rest of print header ... #}
+        <hr>
+    </div>
+
+    {% if transactions %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Product Type</th>
+                <th>Sub-Type</th>
+                <th style="text-align:right;">Quantity</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Total Price</th>
+                <th>Client/Source</th>
+                <th>Remarks</th>
+                {# <th class="no-print">Actions</th> #} {# Actions column can be added later if edit/delete of trx needed #}
+            </tr>
+        </thead>
+        <tbody>
+            {% for trx in transactions %}
+            <tr>
+                <td>{{ trx.transaction_date|datetimeformat('%d-%b-%Y') }}</td>
+                <td><span class="trx-type-{{ trx.transaction_type|lower }}">{{ trx.transaction_type }}</span></td>
+                <td>{{ trx.product_type }}</td>
+                <td>{{ trx.sub_type }}</td>
+                <td style="text-align:right;">{{ "%.2f"|format(trx.quantity if trx.quantity is not none else 0) }}</td> {# Safe format #}
+                <td>{{ trx.unit }}</td>
+                <td style="text-align:right;">{{ "%.2f"|format(trx.total_price) if trx.total_price is not none else '-' }}</td>
+                <td>{{ trx.client_name if trx.client_name else '-' }}</td>
+                <td>{{ trx.remarks if trx.remarks else '-' }}</td>
+                {# <td class="no-print">(Edit/Del)</td> #}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align:center; padding:20px;">No transactions found for the selected criteria.</p>
+    {% endif %}
+</div>
+<div class="print-footer">
+     <p>Printed on: {{ "now"|datetimeformat('%Y-%m-%d %H:%M:%S') }}</p>
+</div>
+
+<style>
+    .trx-type-in { color: green; font-weight: bold; }
+    .trx-type-out { color: red; font-weight: bold; }
+</style>
+{% endblock %}

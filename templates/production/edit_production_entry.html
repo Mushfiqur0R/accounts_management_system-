@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Production Entry{% endblock %}
+{% block page_header %}Edit Production Entry #{{ entry.id if entry.id else entry_id }}{% endblock %}
+
+{% block content %}
+<div class="summary-card">
+    <h3>Edit Production Record</h3>
+    <form method="post" action="{{ url_for('edit_production_entry', entry_id=(entry.id if entry.id else entry_id)) }}">
+        <div class="form-grid-2col">
+            <div>
+                <label for="production_date">Date:</label>
+                <input type="date" id="production_date" name="production_date" value="{{ entry.production_date }}" required>
+            </div>
+            <div>
+                <label for="machine_number">Machine Number:</label>
+                <input type="text" id="machine_number" name="machine_number" value="{{ entry.machine_number }}" list="machine_list" required>
+                <datalist id="machine_list">
+                    <option value="1"><option value="2"><option value="3"><option value="4">
+                </datalist>
+            </div>
+            <div>
+                <label for="design_number">Design Number:</label>
+                <input type="text" id="design_number" name="design_number" value="{{ entry.design_number }}" required>
+            </div>
+            <div>
+                <label for="client_name">Client Name:</label>
+                <input type="text" id="client_name" name="client_name" value="{{ entry.client_name if entry.client_name is not none else '' }}">
+            </div>
+            <div>
+                <label for="total_production">Total Production:</label>
+                <input type="number" step="any" id="total_production" name="total_production" value="{{ entry.total_production }}" required>
+            </div>
+            <div>
+                <label for="production_unit">Unit:</label>
+                <select id="production_unit" name="production_unit" required>
+                    <option value="yards" {% if entry.production_unit == 'yards' %}selected{% endif %}>Yards</option>
+                    <option value="meters" {% if entry.production_unit == 'meters' %}selected{% endif %}>Meters</option>
+                </select>
+            </div>
+        </div>
+        <div style="margin-top: 15px;">
+            <button type="submit" class="button"><i class="fas fa-save"></i> Update Entry</button>
+            <a href="{{ url_for('daily_production_report') }}" class="button button-outline" style="margin-left: 10px;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

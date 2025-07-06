@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Store Inventory Dashboard{% endblock %}
+{% block page_header %}Store Inventory Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .dashboard-grid { /* Re-using from main dashboard */
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+    .stock-card { /* Can be same as summary-card or have its own tweaks */
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.07);
+    }
+    .stock-card h3 {
+        margin-top: 0; color: #333; border-bottom: 1px solid var(--border-color);
+        padding-bottom: 10px; margin-bottom: 15px; font-size: 1.2em; font-weight: 600;
+    }
+    .stock-card h4 {
+        font-size: 1.1em;
+        margin-top: 15px;
+        margin-bottom: 10px;
+        color: var(--primary-color);
+    }
+    .stock-list { list-style-type: none; padding-left: 0; }
+    .stock-list li {
+        padding: 8px 0;
+        border-bottom: 1px dotted #eee;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.95em;
+    }
+
+    
+    .stock-list li:last-child { border-bottom: none; }
+    .stock-list .item-name { font-weight: 500; }
+    .stock-list .item-qty { font-weight: bold; }
+    .stock-list .item-qty.low-stock { color: orange; }
+    .stock-list .item-qty.no-stock { color: red; }
+
+    .summary-value { font-size: 1.6em; font-weight: bold; color: var(--primary-color); display: block; margin-bottom: 5px;}
+    .summary-label { font-size: 0.9em; color: #666; }
+</style>
+
+{# --- Filter Section for Summaries and Chart --- #}
+<div class="filter-section no-print">
+    <h4>Filter Summaries & Chart</h4>
+    <form method="get" action="{{ url_for('store_dashboard') }}" class="filter-form">
+        <div>
+            <label for="filter_date_from">From Date:</label>
+            <input type="date" name="filter_date_from" id="filter_date_from" value="{{ filter_date_from }}">
+        </div>
+        <div>
+            <label for="filter_date_to">To Date:</label>
+            <input type="date" name="filter_date_to" id="filter_date_to" value="{{ filter_date_to }}">
+        </div>
+        <div>
+            <label for="filter_summary_product_type">Product Type (for Summaries/Chart):</label>
+            <select name="filter_summary_product_type" id="filter_summary_product_type">
+                <option value="">All Product Types</option>
+                {% for pt_opt in product_type_filter_options %}
+                <option value="{{ pt_opt }}" {% if filter_summary_product_type == pt_opt %}selected{% endif %}>{{ pt_opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="align-self: flex-end;">
+            <button type="submit" class="button button-small"><i class="fas fa-filter"></i> Apply Filters</button>
+            <a href="{{ url_for('store_dashboard') }}" class="button button-small">Clear Filters</a>
+        </div>
+    </form>
+</div>
+
+
+{# --- Summary Cards for IN/OUT Totals (reflect filters) --- #}
+<div class="dashboard-grid">
+    <div class="stock-card">
+        <h3>
+            Total Stock IN Summary
+            {% if filter_date_from or filter_date_to or filter_summary_product_type %}
+                <small style="font-weight:normal; font-size:0.8em;">(Filtered)</small>
+            {% endif %}
+        </h3>
+        {% if total_in_summary %}
+            <span class="summary-value">{{ "%.2f"|format(total_in_summary.total_quantity_received if total_in_summary.total_quantity_received is not none else 0) }}</span>
+            <span class="summary-label">Total Quantity Received
+                {% if filter_summary_product_type %}({{ filter_summary_product_type }}){% else %}(All Types, All Units){% endif %}
+            </span>
+            <br><br>
+            <span class="summary-value">{{ "%.2f"|format(total_in_summary.total_value_spent if total_in_summary.total_value_spent is not none else 0) }}</span>
+            <span class="summary-label">Total Value Spent</span>
+            <p class="detail" style="margin-top:10px;">Based on {{ total_in_summary.total_in_transactions }} IN transactions.</p>
+        {% else %}
+            <p>No IN transactions match filters.</p>
+        {% endif %}
+        <p style="margin-top:15px;"><a href="{{ url_for('inventory_transactions_list', filter_transaction_type='IN', filter_date_from=filter_date_from, filter_date_to=filter_date_to, filter_product_type=filter_summary_product_type) }}" class="button button-small">View Filtered IN Log</a></p>
+    </div>
+
+    <div class="stock-card">
+        <h3>
+            Total Stock OUT Summary
+            {% if filter_date_from or filter_date_to or filter_summary_product_type %}
+                <small style="font-weight:normal; font-size:0.8em;">(Filtered)</small>
+            {% endif %}
+        </h3>
+        {% if total_out_summary %}
+             <span class="summary-value">{{ "%.2f"|format(total_out_summary.total_quantity_issued if total_out_summary.total_quantity_issued is not none else 0) }}</span>
+            <span class="summary-label">Total Quantity Issued
+                 {% if filter_summary_product_type %}({{ filter_summary_product_type }}){% else %}(All Types, All Units){% endif %}
+            </span>
+            <br><br>
+            <span class="summary-value">{{ "%.2f"|format(total_out_summary.total_value_issued if total_out_summary.total_value_issued is not none else 0) }}</span>
+            <span class="summary-label">Total Value of Issued Stock</span>
+            <p class="detail" style="margin-top:10px;">Based on {{ total_out_summary.total_out_transactions }} OUT transactions.</p>
+        {% else %}
+            <p>No OUT transactions match filters.</p>
+        {% endif %}
+         <p style="margin-top:15px;"><a href="{{ url_for('inventory_transactions_list', filter_transaction_type='OUT', filter_date_from=filter_date_from, filter_date_to=filter_date_to, filter_product_type=filter_summary_product_type) }}" class="button button-small">View Filtered OUT Log</a></p>
+    </div>
+</div>
+
+{# --- IN/OUT Summary Chart --- #}
+<div class="dashboard-grid" style="margin-top: 25px;">
+    <div class="stock-card chart-container" style="grid-column: 1 / -1;"> {# Span full width #}
+        <h3>
+            IN vs OUT Quantities by Product Type
+            {% if filter_date_from or filter_date_to or filter_summary_product_type %}
+                <small style="font-weight:normal; font-size:0.8em;">(Filtered Period/Type)</small>
+            {% endif %}
+        </h3>
+        <canvas id="inOutSummaryChart" style="min-height: 350px; width: 100%;"></canvas>
+    </div>
+</div>
+
+
+{# --- Current Stock Available Section (remains unfiltered) --- #}
+<div class="stock-card" style="margin-top: 25px;">
+    <h3>Current Stock Available (Overall)</h3>
+    {# ... (existing current stock display logic - no changes here) ... #}
+    {% if stock_by_product_type %}
+        {% for product_type, items_in_type in stock_by_product_type.items() %}
+            <h4>{{ product_type }}</h4>
+            <ul class="stock-list">
+                {% for item_stock in items_in_type %}
+                    <li>
+                        <span class="item-name">{{ item_stock.sub_type }}</span>
+                        <span class="item-qty 
+                            {% if item_stock.current_quantity <= 0 %}no-stock{% elif item_stock.current_quantity < 50 %}low-stock{% endif %}">
+                            {{ "%.2f"|format(item_stock.current_quantity) }} {{ item_stock.default_unit }}
+                        </span>
+                    </li>
+                {% else %}
+                    <li>No items defined or in stock for this product type.</li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    {% else %}
+        <p style="text-align:center; padding:20px;">No stock data available. Define items and record IN transactions.</p>
+    {% endif %}
+</div>
+
+<div class="report-actions no-print" style="margin-top: 20px; text-align: right;">
+    <button onclick="printReport()" class="button button-small"><i class="fas fa-print"></i> Print Dashboard Summary</button>
+</div>
+
+<div class="print-header">
+     {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
+        <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Monogram" class="monogram">
+    {% endif %}
+    <h2>{{ company_details.company_name if company_details and company_details.company_name else "Company Name" }}</h2>
+    {# Ensure address and contact are included #}
+    {% if company_details %}
+    <p>{{ company_details.address if company_details.address else "Company Address" }}</p>
+    <p>{{ company_details.contact_info if company_details.contact_info else "Contact Info" }}</p>
+    {% endif %}
+    <h3>Store Inventory Dashboard Summary</h3>
+    {# ... rest of print header ... #}
+    <hr>
+</div>
+<div class="print-footer">
+     <p>Printed on: {{ "now"|datetimeformat('%Y-%m-%d %H:%M:%S') }}</p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Data for IN/OUT Summary Chart
+    const chartLabels = {{ chart_labels|tojson }};
+    const chartInValues = {{ chart_in_values|tojson }};
+    const chartOutValues = {{ chart_out_values|tojson }};
+
+    const inOutCtx = document.getElementById('inOutSummaryChart');
+    if (inOutCtx && chartLabels.length > 0) {
+        new Chart(inOutCtx, {
+            type: 'bar', // Grouped bar chart
+            data: {
+                labels: chartLabels,
+                datasets: [
+                    {
+                        label: 'Total IN Quantity',
+                        data: chartInValues,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)', // Teal/Green
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Total OUT Quantity',
+                        data: chartOutValues,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)', // Red
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Total Quantity (sum of units)'}
+                    },
+                    x: {
+                        title: { display: true, text: 'Product Type'}
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'IN vs OUT Quantities by Product Type (Filtered Period)' }
+                }
+            }
+        });
+    } else if (inOutCtx) {
+        inOutCtx.parentElement.innerHTML += '<p style="text-align:center; padding:20px;">No data available for IN/OUT summary chart based on current filters.</p>';
+        inOutCtx.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Authentication{% endblock %} - {% if company_details and company_details.company_name %}{{ company_details.company_name }}{% else %}AMS{% endif %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flashes" style="max-width: 450px; margin: 0 auto 20px auto; padding-left:0; list-style:none;">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %} {# This is where login.html/register.html content goes #}
+        
+        <footer class="auth-footer"> {# New footer for auth pages #}
+            <p>© {{ _year }} {% if company_details and company_details.company_name %}{{ company_details.company_name }}{% else %}System{% endif %}. All rights reserved.</p>
+            <p class="developer-credit">Developed by <a href="mailto:musfikur.dev@gmail.com" title="Contact Developer Mushfiq">Developer Mushfiq</a></p>
+        </footer>
+    </div>
+</body>
+</html>

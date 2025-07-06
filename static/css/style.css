@@ -564,3 +564,244 @@ button:hover, .button:hover {
     .page-title-header h1 { font-size: 1.2em; } /* Slightly smaller for mobile */
     .header-app-name { font-size: 1em; }
 }
+.form-grid-2col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive 2-column */
+    gap: 15px 20px; /* row-gap column-gap */
+}
+.filter-form {
+    /* ... existing styles like background, border, padding ... */
+    display: flex; /* Use flexbox for alignment */
+    flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+    gap: 15px; /* Space between filter items */
+    align-items: flex-end; /* Align items to the bottom (useful if labels make some taller) */
+    margin-bottom: 20px; /* Space below filter form */
+}
+
+.filter-form div { /* If you wrapped each label-input pair in a div */
+    display: flex;
+    flex-direction: column; /* Stack label on top of input */
+    margin-bottom: 0; /* Remove default div margin if using gap on parent */
+}
+.filter-form label {
+    margin-bottom: 3px; /* Smaller margin for labels in filter */
+    font-size: 0.9em;
+}
+.filter-form input[type="date"],
+.filter-form select,
+.filter-form input[type="text"] {
+    padding: 8px; /* Slightly smaller padding for filter inputs */
+    font-size: 0.9em;
+    min-width: 150px; /* Give them some minimum width */
+}
+.filter-form .button, .filter-form .button-small {
+    margin-left: 5px; /* Space before buttons if they are not wrapped in their own div */
+    margin-top: 8px;
+}
+
+.stock-list .item-qty.low-stock { color: orange; } /* Or a different shade of red if preferred */
+.stock-list .item-qty.no-stock { color: red; }
+
+.filter-section h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+.button-outline {
+    background-color: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+.button-outline:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* --- Authentication Page Specific Styles --- */
+body.auth-page { /* Add this class to <body> in login.html and register.html */
+    /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */ /* Example Gradient */
+    background: linear-gradient(to right top, #051937, #004d7a, #008793, #00bf72, #a8eb12); /* Another example */
+    /* Or a subtle background image: */
+    /* background-image: url('../img/auth_background.jpg'); */
+    /* background-size: cover; */
+    /* background-position: center; */
+    display: flex;
+    align-items: center; /* Vertically center the card */
+    justify-content: center; /* Horizontally center the card */
+    min-height: 100vh; /* Ensure it takes full viewport height */
+    padding: 20px; /* Padding for smaller screens */
+}
+
+.auth-card {
+    background-color: rgba(255, 255, 255, 0.95); /* Slightly transparent white */
+    padding: 30px 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    width: 100%;
+    max-width: 450px; /* Control max width */
+    text-align: center; /* Center text and inline elements within card */
+}
+
+.auth-card .app-title-auth {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: var(--primary-color); /* Or a darker color from your palette */
+    margin-bottom: 5px;
+    letter-spacing: -0.5px;
+}
+.auth-card .app-subtitle-auth {
+    font-size: 1em;
+    color: #555;
+    margin-bottom: 25px;
+}
+
+
+.auth-card h3 { /* Title like "Login" or "Register" */
+    font-size: 1.5em;
+    color: var(--text-color);
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+.auth-card form div {
+    margin-bottom: 20px; /* More spacing between form fields */
+    text-align: left; /* Align labels and inputs left */
+}
+
+.auth-card label {
+    font-weight: 500;
+    font-size: 0.95em;
+    color: #444;
+}
+
+.auth-card input[type="text"],
+.auth-card input[type="password"],
+.auth-card input[type="email"] { /* If you add email */
+    background-color: #f7f7f7; /* Slightly off-white background for inputs */
+    border: 1px solid #ddd;
+    padding: 12px 15px; /* Larger padding */
+}
+.auth-card input[type="text"]:focus,
+.auth-card input[type="password"]:focus {
+    background-color: #fff;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb, 0,123,255),.25); /* Use RGB version of primary color for box-shadow */
+}
+
+
+.auth-card .button { /* Main action button */
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1em;
+    letter-spacing: 0.5px;
+    /* Gradient button example - can be complex */
+    /* background-image: linear-gradient(to right, #6a11cb 0%, #2575fc 100%); */
+    /* transition: all 0.4s ease; */
+    /* background-size: 200% auto; */
+}
+/* Hover effect for gradient button */
+/* .auth-card .button:hover {
+    background-position: right center; 
+    color: #fff;
+    text-decoration: none;
+} */
+
+
+.auth-card .auth-links {
+    margin-top: 25px;
+    font-size: 0.9em;
+}
+.auth-card .auth-links a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+.auth-card .auth-links a:hover {
+    text-decoration: underline;
+    color: var(--primary-hover-color);
+}
+
+/* For the developer details section */
+.developer-details-section {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85em;
+    color: #666;
+}
+.developer-details-section p {
+    margin-bottom: 8px;
+}
+.developer-details-section button {
+    font-size: 0.9em;
+    padding: 6px 12px;
+    background-color: #6c757d; /* Muted button */
+    margin-bottom: 10px;
+}
+.developer-details-section button:hover {
+    background-color: #5a6268;
+}
+.developer-details-content { /* Initially hidden */
+    display: none;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 10px;
+    text-align: left; /* Details text align left */
+}
+.developer-details-content.visible {
+    display: block;
+}
+
+/* Dynamic Gradient Background on Hover (for the entire page or specific elements) */
+/* This is a bit tricky for the whole page body on hover, usually applied to smaller elements */
+/* Example for a button if you want a gradient background shift: */
+/* .auth-card .button.gradient-hover {
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color, #someOtherColor));
+    background-size: 200% 200%;
+    transition: background-position 0.8s ease-out;
+}
+.auth-card .button.gradient-hover:hover {
+    background-position: 100% 100%;
+} */
+
+/* Add --primary-color-rgb to :root for the box-shadow if not already there */
+/* :root {
+    --primary-color: #007bff;
+    --primary-color-rgb: 0,123,255; // Add this
+    ...
+} */
+
+/* ... At the end of your CSS or in a relevant section ... */
+.auth-footer {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85em;
+    color: #888; /* Lighter color for footer */
+}
+.auth-footer p {
+    margin-bottom: 5px;
+}
+.auth-footer .developer-credit {
+    font-size: 0.9em; /* Slightly larger for emphasis */
+    color: #666;
+}
+.auth-footer .developer-credit a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+.auth-footer .developer-credit a:hover {
+    text-decoration: underline;
+    color: var(--primary-hover-color);
+}
+.auth-card .auth-logo {
+    max-height: 60px; /* Adjust as needed */
+    max-width: 180px; /* Adjust as needed */
+    margin-bottom: 15px;
+    display: block; /* If you want it on its own line */
+    margin-left: auto; /* Center if block */
+    margin-right: auto; /* Center if block */
+}

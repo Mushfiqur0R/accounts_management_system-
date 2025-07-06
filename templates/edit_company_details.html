@@ -1,24 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Edit Company Details{% endblock %}
+
+{% block title %}Company Settings{% endblock %}
+{% block page_header %}Company Settings{% endblock %}
+
 {% block content %}
-    <!-- <h2>Edit Company Details</h2> -->
-    <form method="post">
-        <div>
-            <label for="company_name">Company Name:</label>
-            <input type="text" name="company_name" id="company_name" value="{{ company_info.company_name if company_info else '' }}">
-        </div>
-        <div>
-            <label for="monogram_path">Monogram Path (e.g., img/logo.png):</label>
-            <input type="text" name="monogram_path" id="monogram_path" value="{{ company_info.monogram_path if company_info else '' }}">
+<div class="summary-card" style="max-width: 700px; margin: 20px auto;">
+    <h3>Edit Company Details</h3>
+    <form method="post" enctype="multipart/form-data">
+        <div class="form-grid-2col">
+            <div>
+                <label for="company_name">Company Name:</label>
+                <input type="text" name="company_name" id="company_name" value="{{ company_info.company_name if company_info and company_info.company_name else '' }}">
+            </div>
+            <div>
+                <label for="contact_info">Contact Info:</label>
+                <input type="text" name="contact_info" id="contact_info" value="{{ company_info.contact_info if company_info and company_info.contact_info else '' }}">
+            </div>
         </div>
         <div>
             <label for="address">Address:</label>
-            <textarea name="address" id="address">{{ company_info.address if company_info else '' }}</textarea>
+            <textarea name="address" id="address" rows="3">{{ company_info.address if company_info and company_info.address else '' }}</textarea>
         </div>
+        <hr style="margin: 20px 0;">
+        
+        <h4>Company Logo/Monogram</h4>
+        {% if company_info and company_info.monogram_path and company_info.monogram_path != "" %}
+        <div style="margin-bottom: 15px;">
+            <label>Current Monogram/Logo:</label>
+            <img src="{{ url_for('static', filename=company_info.monogram_path) }}" alt="Current Monogram" style="max-height: 80px; max-width: 200px; border: 1px solid #ddd; padding: 5px; display:block; margin-top:5px;">
+        </div>
+        {% else %}
+        <div style="margin-bottom: 10px;">
+             <label>Current Monogram/Logo:</label>
+            <p>No monogram currently set.</p>
+        </div>
+        {% endif %}
+
         <div>
-            <label for="contact_info">Contact Info:</label>
-            <input type="text" name="contact_info" id="contact_info" value="{{ company_info.contact_info if company_info else '' }}">
+            <label for="monogram_file">Upload New Monogram/Logo (Optional):</label>
+            <input type="file" name="monogram_file" id="monogram_file" accept="image/png, image/jpeg, image/gif, image/svg+xml">
+            <small>Leave empty to keep the current monogram. Allowed: PNG, JPG, GIF, SVG.</small>
         </div>
-        <button type="submit">Save Details</button>
+
+        <div style="margin-top: 25px;">
+            <button type="submit" class="button"><i class="fas fa-save"></i> Save Details</button>
+        </div>
     </form>
+</div>
 {% endblock %}

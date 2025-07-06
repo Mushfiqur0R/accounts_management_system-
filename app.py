@@ -11,6 +11,8 @@ import calendar # For month names and days in month
 import pandas as pd # For CSV/Excel import
 from werkzeug.utils import secure_filename # For secure file uploads
 import os # For upload folder
+from werkzeug.utils import secure_filename
+import os
 
 DATABASE = 'database.db'
 
@@ -134,7 +136,15 @@ def admin_required(f):
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
+
+    # Check if any users already exist in the database
+    user_count = query_db("SELECT COUNT(id) as count FROM users", one=True)['count']
+
     if request.method == 'POST':
+        if user_count > 0: # If users exist, public registration is closed
+            flash('Public registration is currently closed. Please contact an administrator or Developer Mushfiq.', 'warning')
+            return redirect(url_for('login')) # Or stay on register page with message
+
         username = request.form['username']
         password = request.form['password']
         confirm_password = request.form['confirm_password']
@@ -143,38 +153,69 @@ def register():
             flash('All fields are required.', 'error')
         elif password != confirm_password:
             flash('Passwords do not match.', 'error')
-        elif User.get_by_username(username):
-            flash('Username already exists.', 'error')
-        else:
-            hashed_password = generate_password_hash(password)
-            try:
-                execute_db("INSERT INTO users (username, password_hash) VALUES (?, ?)",
-                           [username, hashed_password])
+        # No need to check if username exists if user_count is 0, as it will be the first
+        # else: # This else was for the User.get_by_username check which is not needed for the first user
+        
+        # The first user to register becomes an admin
+        is_first_admin = (user_count == 0)
+        
+        hashed_password = generate_password_hash(password)
+        try:
+            execute_db("INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
+                       [username, hashed_password, is_first_admin]) # is_first_admin will be 1 (True) or 0 (False)
+            
+            if is_first_admin:
+                flash('Admin registration successful! You are the first admin. Please log in.', 'success')
+            else: # This branch should not be hit if user_count > 0 blocks POST
                 flash('Registration successful! Please log in.', 'success')
-                return redirect(url_for('login'))
-            except Exception as e:
-                flash(f'An error occurred during registration: {e}', 'error')
-        return render_template('register.html', username=username)
-    return render_template('register.html')
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError: # Should only happen if somehow two try to register at exact same microsecond as first user
+            flash('Username already taken or a database error occurred.', 'error')
+        except Exception as e:
+            flash(f'An error occurred during registration: {e}', 'error')
+        
+        # If POST fails (and wasn't blocked by user_count > 0), re-render with username
+        return render_template('register.html', username=username, registration_allowed=(user_count == 0))
+
+
+    # For GET request
+    registration_allowed = (user_count == 0)
+    if not registration_allowed and user_count > 0: # If GET and registration is closed
+        flash('Public registration is currently closed. Please contact an administrator or Developer Mushfiq.', 'warning')
+        # Optionally redirect to login, or show a simpler register page
+        # return redirect(url_for('login'))
+    
+    return render_template('register.html', registration_allowed=registration_allowed)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
+
+    # Determine if public registration is allowed (for dynamic link on login page)
+    user_count_result = query_db("SELECT COUNT(id) as count FROM users", one=True)
+    user_count = user_count_result['count'] if user_count_result else 0 # Handle case of no users table yet or error
+    registration_allowed = (user_count == 0) # Public registration is allowed only if no users exist
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         remember = True if request.form.get('remember') else False
         user = User.get_by_username(username)
+
         if not user or not check_password_hash(user.password_hash, password):
             flash('Invalid username or password.', 'error')
+            # Pass username back to pre-fill the form and registration_allowed status
+            return render_template('login.html', username=username, registration_allowed=registration_allowed)
         else:
             login_user(user, remember=remember)
             flash('Logged in successfully!', 'success')
             next_page = request.args.get('next')
             return redirect(next_page or url_for('index'))
-        return render_template('login.html', username=username)
-    return render_template('login.html')
+    
+    # For GET request
+    return render_template('login.html', registration_allowed=registration_allowed)
+
 
 @app.route('/logout')
 @login_required
@@ -730,23 +771,86 @@ def monthly_client_summary_report():
                            grand_total_net_change=grand_total_net_change)
 
 # --- Admin Specific Routes ---
+STATIC_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+MONOGRAM_UPLOAD_FOLDER = os.path.join(STATIC_FOLDER, 'img', 'monograms')
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'} # Add more as needed
+
+if not os.path.exists(MONOGRAM_UPLOAD_FOLDER):
+    os.makedirs(MONOGRAM_UPLOAD_FOLDER)
+
+def allowed_image_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
 @app.route('/edit_company_details', methods=['GET', 'POST'])
 @login_required
-@admin_required # <<< CORRECT VERSION WITH ADMIN CHECK
+@admin_required
 def edit_company_details():
-    company_info = get_company_details()
+    company_info = get_company_details() # Get current details for form pre-fill and existing monogram
+
     if request.method == 'POST':
-        company_name = request.form['company_name']
-        monogram_path = request.form['monogram_path']
-        address = request.form['address']
-        contact_info = request.form['contact_info']
-        execute_db("""
-            UPDATE company_details SET company_name = ?, monogram_path = ?, address = ?, contact_info = ?
-            WHERE id = 1
-        """, [company_name, monogram_path, address, contact_info])
-        flash('Company details updated!', 'success')
-        return redirect(url_for('index'))
-    return render_template('edit_company_details.html', company_info=company_info)
+        company_name = request.form.get('company_name')
+        address = request.form.get('address')
+        contact_info = request.form.get('contact_info')
+        
+        new_monogram_path = company_info['monogram_path'] if company_info else None # Keep old path by default
+
+        # --- Handle Monogram File Upload ---
+        if 'monogram_file' in request.files:
+            file = request.files['monogram_file']
+            if file and file.filename != '': # Check if a new file was actually uploaded
+                if allowed_image_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    # To avoid overwriting, you might want to add a timestamp or UUID to filename
+                    # For example: filename = f"{int(datetime.now().timestamp())}_{secure_filename(file.filename)}"
+                    
+                    # Delete old monogram if it exists and is different from the new one
+                    if company_info and company_info['monogram_path'] and \
+                       os.path.basename(company_info['monogram_path']) != filename: # Check base filename
+                        old_file_full_path = os.path.join(STATIC_FOLDER, company_info['monogram_path'])
+                        if os.path.exists(old_file_full_path):
+                            try:
+                                os.remove(old_file_full_path)
+                                print(f"Deleted old monogram: {old_file_full_path}")
+                            except Exception as e_del:
+                                print(f"Error deleting old monogram {old_file_full_path}: {e_del}")
+                                flash(f"Could not delete old monogram image. Please check server permissions.", "warning")
+                    
+                    # Save the new file
+                    try:
+                        file.save(os.path.join(MONOGRAM_UPLOAD_FOLDER, filename))
+                        new_monogram_path = os.path.join('img', 'monograms', filename).replace('\\', '/') # Store relative path for url_for
+                        flash('Monogram uploaded successfully!', 'success')
+                    except Exception as e_save:
+                        print(f"Error saving new monogram: {e_save}")
+                        flash('Error uploading new monogram. Please try again.', 'error')
+                        # Keep the old_monogram_path if new upload fails mid-process
+                        new_monogram_path = company_info['monogram_path'] if company_info else None
+
+                else:
+                    flash('Invalid image file type. Allowed types: png, jpg, jpeg, gif, svg.', 'error')
+                    # Keep the old_monogram_path if new upload is invalid type
+                    new_monogram_path = company_info['monogram_path'] if company_info else None
+            # If no new file is selected, 'file.filename' will be empty, and we keep the old path.
+        
+        # --- End Handle Monogram File Upload ---
+
+        try:
+            execute_db("""
+                UPDATE company_details
+                SET company_name = ?, monogram_path = ?, address = ?, contact_info = ?
+                WHERE id = 1
+            """, [company_name, new_monogram_path, address, contact_info])
+            flash('Company details updated!', 'success')
+            return redirect(url_for('edit_company_details')) # Redirect to same page to see changes
+        except Exception as e:
+            flash(f'Error updating company details in DB: {e}', 'error')
+
+    # For GET request or if POST had an error that didn't redirect
+    # Re-fetch in case of intermediate flash/redirect that didn't fully process
+    company_info_display = get_company_details() 
+    return render_template('edit_company_details.html', company_info=company_info_display)
 
 @app.route('/admin/users')
 @login_required
@@ -782,14 +886,71 @@ def add_user_admin():
         return render_template('admin/add_user.html', form_data=request.form)
     return render_template('admin/add_user.html')
 
+@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_user_admin(user_id):
+    user_to_edit = query_db("SELECT id, username, is_admin FROM users WHERE id = ?", [user_id], one=True)
+    if not user_to_edit:
+        flash('User not found.', 'error')
+        return redirect(url_for('manage_users'))
+
+    if request.method == 'POST':
+        new_username = request.form.get('username').strip()
+        new_is_admin = True if request.form.get('is_admin') else False
+        new_password = request.form.get('password') # Optional new password
+
+        # Check if new username is already taken by another user
+        existing_user = query_db("SELECT id FROM users WHERE username = ? AND id != ?", [new_username, user_id], one=True)
+        if existing_user:
+            flash(f'Username "{new_username}" is already taken.', 'error')
+        else:
+            try:
+                # Update username and admin status
+                execute_db("UPDATE users SET username = ?, is_admin = ? WHERE id = ?",
+                           [new_username, new_is_admin, user_id])
+                
+                # Update password ONLY if a new one was provided
+                if new_password:
+                    # You might want to add a password confirmation field too
+                    hashed_password = generate_password_hash(new_password)
+                    execute_db("UPDATE users SET password_hash = ? WHERE id = ?",
+                               [hashed_password, user_id])
+                    flash(f'User "{new_username}" details and password updated successfully!', 'success')
+                else:
+                    flash(f'User "{new_username}" details updated successfully!', 'success')
+                
+                return redirect(url_for('manage_users'))
+
+            except Exception as e:
+                flash(f'An error occurred: {e}', 'error')
+        
+        # If error, re-render form with submitted data
+        form_data = dict(request.form)
+        form_data['id'] = user_id
+        return render_template('admin/edit_user.html', user=form_data)
+
+
+    # For GET request
+    return render_template('admin/edit_user.html', user=user_to_edit)
+
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def delete_user_admin(user_id):
+    # Prevent deleting oneself
     if user_id == current_user.id:
         flash("You cannot delete yourself.", "error")
         return redirect(url_for('manage_users'))
-    user_to_delete = User.get(user_id)
+
+    # --- PREVENT DELETION OF THE FIRST ADMIN (USER ID 1) ---
+    if user_id == 1:
+        # flash("কাজটা তুমি ঠিক করলে না মাসুদ! The primary administrator (ID 1) cannot be deleted.", "error")
+        flash("The primary administrator (User ID 1) cannot be deleted. (কাজটা তুমি ঠিক করলে না মাসুদ!)", "error")
+        return redirect(url_for('manage_users'))
+    # --- END PROTECTION FOR FIRST ADMIN ---
+
+    user_to_delete = User.get(user_id) # User.get() fetches by id
     if not user_to_delete:
         flash("User not found.", "error")
     else:
@@ -799,7 +960,6 @@ def delete_user_admin(user_id):
         except Exception as e:
             flash(f"Error deleting user: {e}", "error")
     return redirect(url_for('manage_users'))
-
 # ... (after your other routes, or group export routes together)
 
 @app.route('/export/clients_csv')
@@ -1136,7 +1296,669 @@ def import_transactions_csv():
 
     return render_template('import_transactions.html')
 
+# --- Routes for Daily Production ---
 
+@app.route('/production/daily_report', methods=['GET', 'POST'])
+@login_required
+def daily_production_report():
+    if request.method == 'POST': # Handles adding new production entries
+        production_date = request.form.get('production_date')
+        machine_number = request.form.get('machine_number')
+        design_number = request.form.get('design_number')
+        client_name_form = request.form.get('client_name') # Use different var name to avoid clash
+        total_production_str = request.form.get('total_production')
+        production_unit = request.form.get('production_unit', 'yards')
+
+        if not all([production_date, machine_number, design_number, total_production_str]):
+            flash('Date, Machine No., Design No., and Total Production are required.', 'error')
+        else:
+            try:
+                total_production = float(total_production_str)
+                if total_production <= 0:
+                    flash('Total Production must be a positive number.', 'error')
+                else:
+                    execute_db("""
+                        INSERT INTO daily_production
+                        (production_date, machine_number, design_number, client_name, total_production, production_unit)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, [production_date, machine_number, design_number, client_name_form, total_production, production_unit])
+                    flash('Production entry added successfully!', 'success')
+            except ValueError:
+                flash('Total Production must be a valid number.', 'error')
+            except Exception as e:
+                flash(f'An error occurred: {e}', 'error')
+        # Form data for re-rendering is handled below by fetching current request args for filters
+
+    # For GET request or after POST (to show list with filters applied)
+    filter_specific_date = request.args.get('filter_specific_date', '') # New: YYYY-MM-DD
+    filter_client_name = request.args.get('filter_client_name', '')   # New
+    filter_year = request.args.get('filter_year', '') # Keep for broader view or if date is not set
+
+    query = "SELECT * FROM daily_production WHERE 1=1"
+    params = []
+    
+    # Apply filters
+    if filter_specific_date:
+        query += " AND production_date = ?"
+        params.append(filter_specific_date)
+        # If specific date is chosen, year filter becomes less relevant for this query
+        # but can be kept for the filter UI pre-selection
+    elif filter_year: # Only apply year filter if specific date is not set
+        query += " AND strftime('%Y', production_date) = ?"
+        params.append(filter_year)
+        
+    if filter_client_name:
+        query += " AND client_name LIKE ?"
+        params.append(f"%{filter_client_name}%") # Partial match
+
+    query += " ORDER BY production_date DESC, id DESC"
+    production_entries = query_db(query, params)
+
+    # For filter dropdowns/datalists
+    distinct_years_for_filter = query_db("SELECT DISTINCT strftime('%Y', production_date) as year FROM daily_production ORDER BY year DESC")
+    distinct_clients_for_filter = query_db("SELECT DISTINCT client_name FROM daily_production WHERE client_name IS NOT NULL AND client_name != '' ORDER BY client_name ASC")
+    
+    default_date_form = datetime.now().strftime('%Y-%m-%d') # For the "Add New Entry" form
+
+    return render_template('production/daily_production_report.html',
+                           production_entries=production_entries,
+                           form_data=request.form if request.method == 'POST' and any(request.form.values()) else {},
+                           default_date_form=default_date_form,
+                           distinct_years_for_filter=distinct_years_for_filter, # Renamed for clarity
+                           distinct_clients_for_filter=distinct_clients_for_filter, # Renamed
+                           filter_specific_date=filter_specific_date,
+                           filter_client_name=filter_client_name,
+                           filter_year=filter_year) # Pass current year filter value
+
+
+
+@app.route('/export/production_csv')
+@login_required
+def export_production_csv():
+    filter_year = request.args.get('filter_year', '')
+    filter_month = request.args.get('filter_month', '')
+
+    query = "SELECT * FROM daily_production WHERE 1=1"
+    params = []
+    filename_parts = ["production_report"]
+
+    if filter_year and filter_month:
+        query += " AND production_date LIKE ?"
+        params.append(f"{filter_year}-{filter_month}-%")
+        filename_parts.append(f"{filter_year}-{filter_month}")
+    elif filter_year:
+        query += " AND production_date LIKE ?"
+        params.append(f"{filter_year}-%")
+        filename_parts.append(filter_year)
+    
+    query += " ORDER BY production_date DESC, id DESC"
+    entries = query_db(query, params)
+
+    si = io.StringIO()
+    cw = csv.writer(si)
+    headers = ['ID', 'Date', 'Machine No.', 'Design No.', 'Client Name', 'Total Production', 'Unit']
+    cw.writerow(headers)
+    for entry in entries:
+        cw.writerow([
+            entry['id'], entry['production_date'], entry['machine_number'], entry['design_number'],
+            entry['client_name'], entry['total_production'], entry['production_unit']
+        ])
+    
+    output = si.getvalue()
+    si.close()
+    filename = "_".join(filename_parts) + ".csv"
+    return Response(output, mimetype="text/csv", headers={"Content-disposition": f"attachment; filename={filename}"})
+
+# PDF export for production is more complex and requires a library like WeasyPrint or ReportLab.
+# We'll add a placeholder route for now.
+@app.route('/export/production_pdf')
+@login_required
+def export_production_pdf():
+    # This is a placeholder. Actual PDF generation is complex.
+    # You'd typically render an HTML template specifically for PDF, then convert it.
+    filter_year = request.args.get('filter_year', '')
+    filter_month = request.args.get('filter_month', '')
+    # Fetch data similar to CSV export
+    # ...
+    # For now, just redirect or show a message
+    flash("PDF export for production reports is not yet implemented.", "info")
+    return redirect(url_for('daily_production_report', filter_year=filter_year, filter_month=filter_month))
+
+# You'll also need Edit/Delete routes for production entries later.
+# @app.route('/production/<int:entry_id>/edit', methods=['GET', 'POST'])
+# @app.route('/production/<int:entry_id>/delete', methods=['POST'])
+
+@app.route('/production/<int:entry_id>/edit', methods=['GET', 'POST'])
+@login_required
+# @admin_required # Decide if only admins can edit, or any logged-in user
+def edit_production_entry(entry_id):
+    entry = query_db("SELECT * FROM daily_production WHERE id = ?", [entry_id], one=True)
+    if not entry:
+        flash('Production entry not found.', 'error')
+        return redirect(url_for('daily_production_report'))
+
+    if request.method == 'POST':
+        production_date = request.form.get('production_date')
+        machine_number = request.form.get('machine_number')
+        design_number = request.form.get('design_number')
+        client_name = request.form.get('client_name')
+        total_production_str = request.form.get('total_production')
+        production_unit = request.form.get('production_unit')
+
+        if not all([production_date, machine_number, design_number, total_production_str, production_unit]):
+            flash('All fields are required.', 'error')
+        else:
+            try:
+                total_production = float(total_production_str)
+                if total_production <= 0:
+                    flash('Total Production must be a positive number.', 'error')
+                else:
+                    execute_db("""
+                        UPDATE daily_production SET
+                        production_date = ?, machine_number = ?, design_number = ?,
+                        client_name = ?, total_production = ?, production_unit = ?
+                        WHERE id = ?
+                    """, [production_date, machine_number, design_number, client_name,
+                          total_production, production_unit, entry_id])
+                    flash('Production entry updated successfully!', 'success')
+                    return redirect(url_for('daily_production_report'))
+            except ValueError:
+                flash('Total Production must be a valid number.', 'error')
+            except Exception as e:
+                flash(f'An error occurred: {e}', 'error')
+        # Re-render form with submitted data if error
+        return render_template('production/edit_production_entry.html', entry=request.form, entry_id=entry_id) # Pass form data
+
+    # For GET request, pass existing entry data
+    return render_template('production/edit_production_entry.html', entry=entry, entry_id=entry_id)
+
+
+@app.route('/production/<int:entry_id>/delete', methods=['POST'])
+@login_required
+@admin_required # Deletion is usually an admin action
+def delete_production_entry(entry_id):
+    entry = query_db("SELECT id FROM daily_production WHERE id = ?", [entry_id], one=True)
+    if not entry:
+        flash('Production entry not found.', 'error')
+    else:
+        try:
+            execute_db("DELETE FROM daily_production WHERE id = ?", [entry_id])
+            flash('Production entry deleted successfully!', 'success')
+        except Exception as e:
+            flash(f'Error deleting production entry: {e}', 'error')
+    return redirect(url_for('daily_production_report'))
+
+# --- Routes for Managing Inventory Items (Admin) ---
+@app.route('/admin/inventory_items', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def manage_inventory_items():
+    if request.method == 'POST': # Adding a new item
+        product_type = request.form.get('product_type')
+        sub_type = request.form.get('sub_type', '').strip()
+        default_unit = request.form.get('default_unit')
+        description = request.form.get('description', '').strip()
+
+        if not product_type or not sub_type or not default_unit:
+            flash('Product Type, Sub-Type, and Default Unit are required.', 'error')
+        else:
+            try:
+                execute_db("""
+                    INSERT INTO inventory_items (product_type, sub_type, default_unit, description)
+                    VALUES (?, ?, ?, ?)
+                """, [product_type, sub_type, default_unit, description])
+                flash(f'Inventory item "{product_type} - {sub_type}" added successfully!', 'success')
+            except sqlite3.IntegrityError: # Handles UNIQUE constraint violation
+                flash(f'Inventory item "{product_type} - {sub_type}" already exists.', 'error')
+            except Exception as e:
+                flash(f'An error occurred: {e}', 'error')
+        # Stay on page to show list and allow more additions
+        # return redirect(url_for('manage_inventory_items')) # Not needed, will fall through to GET
+
+    items = query_db("SELECT * FROM inventory_items ORDER BY product_type, sub_type")
+    
+    # Predefined product types and units for the form
+    product_type_options = ['Fabric', 'Paper', 'Color', 'Chemical', 'Other'] # Customize as needed
+    unit_options = ['yards', 'meters', 'kg', 'grams', 'liters', 'ml', 'sheets', 'pcs', 'rolls', 'Other'] # Customize
+
+    return render_template('admin/manage_inventory_items.html',
+                           items=items,
+                           product_type_options=product_type_options,
+                           unit_options=unit_options,
+                           form_data=request.form if request.method == 'POST' else {})
+
+
+@app.route('/admin/inventory_items/<int:item_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_inventory_item(item_id):
+    # Check if item is used in transactions before deleting
+    transactions_exist = query_db("SELECT 1 FROM inventory_transactions WHERE inventory_item_id = ? LIMIT 1", [item_id], one=True)
+    if transactions_exist:
+        flash('Cannot delete item. It is used in existing inventory transactions. Consider deactivating it instead (feature not yet implemented).', 'error')
+    else:
+        try:
+            item = query_db("SELECT product_type, sub_type FROM inventory_items WHERE id = ?", [item_id], one=True)
+            if item:
+                execute_db("DELETE FROM inventory_items WHERE id = ?", [item_id])
+                flash(f'Inventory item "{item["product_type"]} - {item["sub_type"]}" deleted.', 'success')
+            else:
+                flash('Item not found.', 'error')
+        except Exception as e:
+            flash(f'Error deleting item: {e}', 'error')
+    return redirect(url_for('manage_inventory_items'))
+
+# Edit Inventory Item route can be added later if needed.
+@app.route('/admin/inventory_items/<int:item_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_inventory_item(item_id):
+    item = query_db("SELECT * FROM inventory_items WHERE id = ?", [item_id], one=True)
+    if not item:
+        flash('Inventory item not found.', 'error')
+        return redirect(url_for('manage_inventory_items'))
+
+    if request.method == 'POST':
+        product_type = request.form.get('product_type')
+        sub_type = request.form.get('sub_type', '').strip()
+        default_unit = request.form.get('default_unit')
+        description = request.form.get('description', '').strip()
+
+        if not product_type or not sub_type or not default_unit:
+            flash('Product Type, Sub-Type, and Default Unit are required.', 'error')
+        else:
+            try:
+                # Check for uniqueness if product_type or sub_type changed
+                existing_item = query_db(
+                    "SELECT id FROM inventory_items WHERE product_type = ? AND sub_type = ? AND id != ?",
+                    [product_type, sub_type, item_id], one=True
+                )
+                if existing_item:
+                    flash(f'Another inventory item "{product_type} - {sub_type}" already exists.', 'error')
+                else:
+                    execute_db("""
+                        UPDATE inventory_items SET
+                        product_type = ?, sub_type = ?, default_unit = ?, description = ?
+                        WHERE id = ?
+                    """, [product_type, sub_type, default_unit, description, item_id])
+                    flash('Inventory item updated successfully!', 'success')
+                    return redirect(url_for('manage_inventory_items'))
+            except sqlite3.IntegrityError: # Should be caught by the check above, but as a fallback
+                 flash(f'Inventory item "{product_type} - {sub_type}" may already exist or another integrity issue.', 'error')
+            except Exception as e:
+                flash(f'An error occurred: {e}', 'error')
+        # Re-render form with submitted data if error, passing original item_id
+        # For the form values, it's better to construct a dictionary from request.form
+        # and add the item_id for the action URL.
+        form_values = dict(request.form)
+        form_values['id'] = item_id # Add id for action URL in template
+        return render_template('admin/edit_inventory_item.html', item=form_values, item_id=item_id,
+                               product_type_options=['Fabric', 'Paper', 'Color', 'Chemical', 'Other'],
+                               unit_options=['yards', 'meters', 'kg', 'grams', 'liters', 'ml', 'sheets', 'pcs', 'rolls', 'Other'])
+
+
+    # For GET request
+    product_type_options = ['Fabric', 'Paper', 'Color', 'Chemical', 'Other']
+    unit_options = ['yards', 'meters', 'kg', 'grams', 'liters', 'ml', 'sheets', 'pcs', 'rolls', 'Other']
+    return render_template('admin/edit_inventory_item.html', item=item, item_id=item_id,
+                           product_type_options=product_type_options, unit_options=unit_options)
+
+@app.route('/inventory/in', methods=['GET', 'POST'])
+@login_required
+def inventory_in_form():
+    if request.method == 'POST':
+        transaction_date = request.form.get('transaction_date')
+        inventory_item_id_str = request.form.get('inventory_item_id')
+        quantity_str = request.form.get('quantity')
+        unit = request.form.get('unit') # Unit for this transaction
+        total_price_str = request.form.get('total_price')
+        client_name = request.form.get('client_name', '').strip() # Optional supplier/client
+        remarks = request.form.get('remarks', '').strip()
+
+        if not transaction_date or not inventory_item_id_str or not quantity_str or not unit:
+            flash('Date, Item, Quantity, and Unit are required.', 'error')
+        else:
+            try:
+                inventory_item_id = int(inventory_item_id_str)
+                quantity = float(quantity_str)
+                total_price = float(total_price_str) if total_price_str else None # Can be optional
+
+                if quantity <= 0:
+                    flash('Quantity must be a positive number.', 'error')
+                else:
+                    # Fetch item details to store redundantly and for validation
+                    item_def = query_db("SELECT product_type, sub_type, default_unit FROM inventory_items WHERE id = ?",
+                                        [inventory_item_id], one=True)
+                    if not item_def:
+                        flash('Selected inventory item not found. Please define it first.', 'error')
+                    else:
+                        execute_db("""
+                            INSERT INTO inventory_transactions
+                            (transaction_date, transaction_type, inventory_item_id, product_type, sub_type,
+                             quantity, unit, total_price, client_name, remarks, user_id)
+                            VALUES (?, 'IN', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, [transaction_date, inventory_item_id, item_def['product_type'], item_def['sub_type'],
+                              quantity, unit, total_price, client_name, remarks, current_user.id])
+                        flash(f'Stock IN recorded: {quantity} {unit} of {item_def["product_type"]} - {item_def["sub_type"]}.', 'success')
+                        # return redirect(url_for('inventory_in_form')) # Stay on page or redirect to a list
+            except ValueError:
+                flash('Invalid number for Quantity or Total Price.', 'error')
+            except Exception as e:
+                flash(f'An error occurred: {e}', 'error')
+
+    # For GET request or if POST had an error
+    # Fetch defined inventory items for the dropdown
+    # Group items by product_type for a grouped select or just list them
+    inventory_item_options = query_db("SELECT id, product_type, sub_type, default_unit FROM inventory_items ORDER BY product_type, sub_type")
+    
+    # For unit dropdown consistency
+    unit_options = ['yards', 'meters', 'kg', 'grams', 'liters', 'ml', 'sheets', 'pcs', 'rolls', 'Other']
+
+
+    default_date_form = datetime.now().strftime('%Y-%m-%d')
+    return render_template('inventory/stock_in_form.html',
+                           inventory_item_options=inventory_item_options,
+                           unit_options=unit_options,
+                           default_date_form=default_date_form,
+                           form_data=request.form if request.method == 'POST' else {})
+@app.route('/inventory/out', methods=['GET', 'POST'])
+@login_required
+def inventory_out_form():
+    if request.method == 'POST':
+        transaction_date = request.form.get('transaction_date')
+        inventory_item_id_str = request.form.get('inventory_item_id')
+        quantity_str = request.form.get('quantity')
+        unit = request.form.get('unit') # Unit for this transaction
+        total_price_str = request.form.get('total_price')
+        client_name = request.form.get('client_name', '').strip()
+        remarks = request.form.get('remarks', '').strip()
+
+        if not transaction_date or not inventory_item_id_str or not quantity_str or not unit or not client_name:
+            flash('Date, Item, Quantity, Unit, and Client Name (Issued To) are required.', 'error')
+        else:
+            try:
+                inventory_item_id = int(inventory_item_id_str)
+                quantity_to_issue = float(quantity_str) # Renamed for clarity
+                total_price = float(total_price_str) if total_price_str else None
+
+                if quantity_to_issue <= 0:
+                    flash('Quantity to issue must be a positive number.', 'error')
+                else:
+                    item_def = query_db("SELECT product_type, sub_type, default_unit FROM inventory_items WHERE id = ?",
+                                        [inventory_item_id], one=True)
+                    if not item_def:
+                        flash('Selected inventory item not found.', 'error')
+                    else:
+                        # --- STOCK AVAILABILITY CHECK ---
+                        # This check assumes all transactions for this item_id use the SAME unit for direct summation.
+                        # If units can vary, this check needs to be much more complex with conversions.
+                        current_stock_query = """
+                            SELECT 
+                                COALESCE(SUM(CASE transaction_type
+                                            WHEN 'IN' THEN quantity
+                                            WHEN 'OUT' THEN -quantity
+                                            ELSE 0
+                                       END), 0) as current_quantity
+                            FROM inventory_transactions
+                            WHERE inventory_item_id = ? 
+                            -- AND unit = ? -- Add this if you only want to check stock for the specific unit being issued
+                            -- If you don't check unit here, it assumes all quantities for the item are in a comparable unit
+                        """
+                        # For a simple check, we assume the `unit` selected in the form is the unit we care about
+                        # This implies that the stock itself is maintained in this unit or directly comparable units.
+                        # A more robust system would check against the item's primary stock unit after conversion.
+                        
+                        # Let's refine to check stock in the specific unit being issued if possible,
+                        # or sum all and assume comparable for now.
+                        # For a truly accurate check, you'd sum quantities for each unit type for an item,
+                        # convert them to a base unit, then check availability.
+                        # For now, the query sums all quantities for the item_id regardless of unit.
+                        # This is a simplification. The dashboard also sums this way.
+
+                        stock_data = query_db(current_stock_query, [inventory_item_id], one=True)
+                        available_stock = stock_data['current_quantity'] if stock_data and stock_data['current_quantity'] is not None else 0.0
+
+                        if quantity_to_issue > available_stock:
+                            flash(f'Insufficient stock for "{item_def["product_type"]} - {item_def["sub_type"]}". ' +
+                                  f'Available: {available_stock:.2f} (units based on transaction history). ' + # Clarify unit basis
+                                  f'Requested: {quantity_to_issue:.2f} {unit}.', 'error')
+                        else:
+                            # Proceed with OUT transaction
+                            execute_db("""
+                                INSERT INTO inventory_transactions
+                                (transaction_date, transaction_type, inventory_item_id, product_type, sub_type,
+                                 quantity, unit, total_price, client_name, remarks, user_id)
+                                VALUES (?, 'OUT', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, [transaction_date, inventory_item_id, item_def['product_type'], item_def['sub_type'],
+                                  quantity_to_issue, unit, total_price, client_name, remarks, current_user.id])
+                            flash(f'Stock OUT recorded: {quantity_to_issue:.2f} {unit} of {item_def["product_type"]} - {item_def["sub_type"]}.', 'success')
+                            # return redirect(url_for('inventory_out_form')) # Or to dashboard/log
+            except ValueError:
+                flash('Invalid number for Quantity or Total Price.', 'error')
+            except Exception as e:
+                flash(f'An error occurred: {e}', 'error')
+                # For debugging:
+                # import traceback
+                # traceback.print_exc()
+
+
+    # For GET request or if POST had an error (to pre-fill form and dropdowns)
+    inventory_item_options = query_db("SELECT id, product_type, sub_type, default_unit FROM inventory_items ORDER BY product_type, sub_type")
+    unit_options = ['yards', 'meters', 'kg', 'grams', 'liters', 'ml', 'sheets', 'pcs', 'rolls', 'Other'] # Ensure this list is comprehensive
+    default_date_form = datetime.now().strftime('%Y-%m-%d')
+
+    return render_template('inventory/stock_out_form.html',
+                           inventory_item_options=inventory_item_options,
+                           unit_options=unit_options,
+                           default_date_form=default_date_form,
+                           form_data=request.form if request.method == 'POST' else {})
+
+@app.route('/inventory/transactions')
+@login_required
+def inventory_transactions_list():
+    # Filters
+    filter_date_from = request.args.get('filter_date_from', '')
+    filter_date_to = request.args.get('filter_date_to', '')
+    filter_transaction_type = request.args.get('filter_transaction_type', '')
+    filter_product_type = request.args.get('filter_product_type', '')
+    filter_sub_type = request.args.get('filter_sub_type', '')
+    filter_client_name = request.args.get('filter_client_name', '')
+
+    # Original query had a JOIN which is good for displaying item names directly if needed,
+    # but the inventory_transactions table itself stores product_type and sub_type.
+    # Let's simplify the query for now to reduce potential JOIN issues and select directly
+    # from inventory_transactions. We can add JOIN back if we need info from inventory_items
+    # that's not already denormalized in inventory_transactions.
+    
+    # The original query was:
+    # query = "SELECT it.*, ii.sub_type as item_sub_type_def, ii.product_type as item_prod_type_def FROM inventory_transactions it JOIN inventory_items ii ON it.inventory_item_id = ii.id WHERE 1=1"
+    # This is fine, but let's ensure all aliases are used correctly or simplify if those aliases aren't used in template.
+
+    # Let's use the simpler query based on the assumption that product_type and sub_type
+    # are already stored in inventory_transactions.
+    query = "SELECT * FROM inventory_transactions WHERE 1=1" # Simpler base query
+    params = []
+
+    if filter_date_from:
+        query += " AND transaction_date >= ?" # Assuming 'transaction_date' is the column in inventory_transactions
+        params.append(filter_date_from)
+    if filter_date_to:
+        query += " AND transaction_date <= ?"
+        params.append(filter_date_to)
+    if filter_transaction_type:
+        query += " AND transaction_type = ?" # Assuming 'transaction_type'
+        params.append(filter_transaction_type)
+    if filter_product_type:
+        query += " AND product_type = ?" # Assuming 'product_type' in inventory_transactions
+        params.append(filter_product_type)
+    if filter_sub_type:
+        query += " AND sub_type LIKE ?" # Assuming 'sub_type' in inventory_transactions
+        params.append(f"%{filter_sub_type}%")
+    if filter_client_name:
+        query += " AND client_name LIKE ?" # Assuming 'client_name' in inventory_transactions
+        params.append(f"%{filter_client_name}%")
+
+    query += " ORDER BY transaction_date DESC, id DESC" # Ensure table alias 'it.' is removed if not using JOIN
+    
+    transactions = query_db(query, params)
+
+    # For filter dropdowns
+    # Fetching from inventory_items is correct for populating filter options for defined types
+    product_type_options_rows = query_db("SELECT DISTINCT product_type FROM inventory_items ORDER BY product_type")
+    
+    # Convert list of Row objects to list of strings
+    product_type_options_list = []
+    if product_type_options_rows:
+        product_type_options_list = [pt_row['product_type'] for pt_row in product_type_options_rows]
+
+
+    return render_template('inventory/transactions_list.html',
+                           transactions=transactions,
+                           filter_date_from=filter_date_from,
+                           filter_date_to=filter_date_to,
+                           filter_transaction_type=filter_transaction_type,
+                           filter_product_type=filter_product_type,
+                           product_type_options=product_type_options_list, # Pass the list of strings
+                           filter_sub_type=filter_sub_type,
+                           filter_client_name=filter_client_name)
+
+@app.route('/inventory/dashboard', methods=['GET']) # Allow GET for filter params
+@login_required
+def store_dashboard():
+    # --- Filters for IN/OUT Summaries ---
+    filter_date_from = request.args.get('filter_date_from', '')
+    filter_date_to = request.args.get('filter_date_to', '')
+    # For IN/OUT summaries, we might want a separate product type filter
+    # to avoid confusion with the overall stock display which shows all product types.
+    filter_summary_product_type = request.args.get('filter_summary_product_type', '')
+
+    # --- 1. Current Stock Available (remains unfiltered for overall view) ---
+    current_stock_query = """
+        SELECT ii.id as item_id, ii.product_type, ii.sub_type, ii.default_unit,
+               COALESCE(SUM(CASE it.transaction_type WHEN 'IN' THEN it.quantity WHEN 'OUT' THEN -it.quantity ELSE 0 END), 0) as current_quantity
+        FROM inventory_items ii
+        LEFT JOIN inventory_transactions it ON ii.id = it.inventory_item_id
+        GROUP BY ii.id, ii.product_type, ii.sub_type, ii.default_unit
+        ORDER BY ii.product_type, ii.sub_type;
+    """
+    current_stock_list = query_db(current_stock_query)
+    stock_by_product_type = defaultdict(list)
+    for item_stock in current_stock_list:
+        stock_by_product_type[item_stock['product_type']].append(item_stock)
+
+    # --- 2. Total IN Summary (Now Filterable) ---
+    total_in_summary_query_base = """
+        SELECT COUNT(*) as total_in_transactions,
+               COALESCE(SUM(quantity), 0) as total_quantity_received,
+               COALESCE(SUM(total_price), 0) as total_value_spent
+        FROM inventory_transactions
+        WHERE transaction_type = 'IN'
+    """
+    in_params = []
+    in_conditions = []
+
+    if filter_date_from:
+        in_conditions.append("transaction_date >= ?")
+        in_params.append(filter_date_from)
+    if filter_date_to:
+        in_conditions.append("transaction_date <= ?")
+        in_params.append(filter_date_to)
+    if filter_summary_product_type:
+        in_conditions.append("product_type = ?")
+        in_params.append(filter_summary_product_type)
+    
+    if in_conditions:
+        total_in_summary_query = total_in_summary_query_base + " AND " + " AND ".join(in_conditions)
+    else:
+        total_in_summary_query = total_in_summary_query_base
+        
+    total_in_summary = query_db(total_in_summary_query, tuple(in_params), one=True)
+
+
+    # --- 3. Total OUT Summary (Now Filterable) ---
+    total_out_summary_query_base = """
+        SELECT COUNT(*) as total_out_transactions,
+               COALESCE(SUM(quantity), 0) as total_quantity_issued,
+               COALESCE(SUM(total_price), 0) as total_value_issued
+        FROM inventory_transactions
+        WHERE transaction_type = 'OUT'
+    """
+    out_params = []
+    out_conditions = []
+
+    if filter_date_from:
+        out_conditions.append("transaction_date >= ?")
+        out_params.append(filter_date_from)
+    if filter_date_to:
+        out_conditions.append("transaction_date <= ?")
+        out_params.append(filter_date_to)
+    if filter_summary_product_type:
+        out_conditions.append("product_type = ?")
+        out_params.append(filter_summary_product_type)
+
+    if out_conditions:
+        total_out_summary_query = total_out_summary_query_base + " AND " + " AND ".join(out_conditions)
+    else:
+        total_out_summary_query = total_out_summary_query_base
+
+    total_out_summary = query_db(total_out_summary_query, tuple(out_params), one=True)
+    
+    # --- 4. Data for IN/OUT Summary Chart (e.g., by Product Type for the filtered period) ---
+    # This chart will show total IN Qty vs total OUT Qty for each product type
+    # within the filtered date range.
+    in_out_chart_query = """
+        SELECT
+            product_type,
+            SUM(CASE WHEN transaction_type = 'IN' THEN quantity ELSE 0 END) as total_in_qty,
+            SUM(CASE WHEN transaction_type = 'OUT' THEN quantity ELSE 0 END) as total_out_qty
+        FROM inventory_transactions
+        WHERE 1=1 
+    """
+    chart_params = []
+    chart_conditions = []
+
+    if filter_date_from:
+        chart_conditions.append("transaction_date >= ?")
+        chart_params.append(filter_date_from)
+    if filter_date_to:
+        chart_conditions.append("transaction_date <= ?")
+        chart_params.append(filter_date_to)
+    # This chart will show all product types unless one is specifically chosen for summary cards
+    if filter_summary_product_type:
+        chart_conditions.append("product_type = ?")
+        chart_params.append(filter_summary_product_type)
+
+    if chart_conditions:
+        in_out_chart_query += " AND " + " AND ".join(chart_conditions)
+    
+    in_out_chart_query += " GROUP BY product_type ORDER BY product_type"
+    
+    in_out_chart_data_rows = query_db(in_out_chart_query, tuple(chart_params))
+    
+    chart_labels = [row['product_type'] for row in in_out_chart_data_rows]
+    chart_in_values = [row['total_in_qty'] for row in in_out_chart_data_rows]
+    chart_out_values = [row['total_out_qty'] for row in in_out_chart_data_rows]
+
+
+    # For filter dropdowns
+    product_type_filter_options = query_db("SELECT DISTINCT product_type FROM inventory_items ORDER BY product_type")
+    product_type_filter_options_list = [pt['product_type'] for pt in product_type_filter_options] if product_type_filter_options else []
+
+
+    return render_template('inventory/store_dashboard.html',
+                           stock_by_product_type=stock_by_product_type,
+                           total_in_summary=total_in_summary,
+                           total_out_summary=total_out_summary,
+                           # Filters
+                           filter_date_from=filter_date_from,
+                           filter_date_to=filter_date_to,
+                           filter_summary_product_type=filter_summary_product_type,
+                           product_type_filter_options=product_type_filter_options_list,
+                           # Chart Data
+                           chart_labels=chart_labels,
+                           chart_in_values=chart_in_values,
+                           chart_out_values=chart_out_values
+                           )
 
 if __name__ == '__main__':
     app.run(debug=True)

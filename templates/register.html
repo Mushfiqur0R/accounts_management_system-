@@ -1,25 +1,115 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 
 {% block title %}Register{% endblock %}
 
 {% block content %}
-<!-- <h2>Register New User</h2> -->
-<form method="post">
-    <div>
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" value="{{ username if username else '' }}" required>
+<div class="auth-card">
+    {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
+        <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Logo" class="auth-logo">
+    {% endif %}
+    <h2 class="app-title-auth">{% if company_details and company_details.company_name %}{{ company_details.company_name }}{% else %}Trims Mart{% endif %}</h2>
+    <p class="app-subtitle-auth">Accounts & Inventory Management</p>
+
+    {# ... rest of register form and developer details section ... #}
+    {% if registration_allowed %}
+        <h3>{% if user_count == 0 %}Register First Administrator{% else %}Create Account{% endif %}</h3>
+        {% if user_count == 0 %}<p>The first user to register will automatically become an administrator.</p>{% endif %}
+        <hr style="margin: 15px 0;">
+        <form method="post">
+            <div>
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" value="{{ username if username else '' }}" required>
+            </div>
+            <div>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div>
+                <label for="confirm_password">Confirm Password:</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+            </div>
+            <div style="margin-top:20px;">
+                <button type="submit" class="button"><i class="fas fa-user-plus"></i> Register</button>
+            </div>
+        </form>
+    {% else %}
+        <h3>Registration Closed</h3>
+        <p>Public user registration is currently unavailable.</p>
+        <p>If you require an account, please contact an existing system administrator or reach out to <strong>Developer Mushfiq</strong> for assistance.</p>
+    {% endif %}
+
+    <div class="auth-links">
+        <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a>.</p>
     </div>
-    <div>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
+
+    {# --- Developer Details Section (already gated with JS) --- #}
+    <div class="developer-details-section">
+        <button type="button" class="button button-small" id="showDevDetailsBtn">ডেভেলপারের সাথে এক চিমটি রসিকতা?</button>
+        <div id="mathChallenge" style="display:none; margin-top:10px;">
+            <p id="mathProblem" style="font-weight:bold;"></p>
+            <input type="number" id="mathAnswer" placeholder="উত্তর দিন..." style="margin-bottom:10px; text-align:center;">
+            <button type="button" class="button button-small" id="submitMathAnswerBtn">জমা দিন</button>
+            <p id="mathFeedback" style="font-size:0.9em; margin-top:5px;"></p>
+        </div>
+        <div class="developer-details-content" id="devDetailsContent">
+            <p style="font-size:1.1em; font-weight:bold; color:var(--primary-color);">একটু কথা বলি ডেভেলপার মাসুদের সাথে!</p> {# Changed from 만나 parler #}
+            <p>এই চমৎকার সিস্টেমটা বানিয়েছে এক রাতের ঘুম হারাম করা কফিপ্রেমী, কোডের জাদুকর - <strong>মুশফিকুর রহমান</strong>।</p>
+            <p>যদি সিস্টেমটা ব্যবহার করতে গিয়ে আপনার মনে হয়, "বাহ! কী দারুণ বানিয়েছে!", অথবা যদি কোনও গুরুতর বাগ খুঁজে পান (আশা করি পাবেন না!), তাহলে এই ঠিকানায় একটা ইমেইল পাঠাতে পারেন:</p>
+            <p><i class="fas fa-envelope"></i> <a href="mailto:musfikur.dev@gmail.com">musfikur.dev@gmail.com</a></p>
+            <p style="font-size:0.8em; margin-top:15px;">(বিঃদ্রঃ গুরুতর বাগ মানে কিন্তু "আমার পছন্দের রঙ নীল কেন নেই?" টাইপের কিছু না!)</p>
+        </div>
     </div>
-    <div>
-        <label for="confirm_password">Confirm Password:</label>
-        <input type="password" id="confirm_password" name="confirm_password" required>
-    </div>
-    <div>
-        <button type="submit">Register</button>
-    </div>
-</form>
-<p>Already have an account? <a href="{{ url_for('login') }}">Login here</a>.</p>
+</div>
+
+<script>
+    // ... (JavaScript for developer details math challenge - keep as is) ...
+    document.addEventListener('DOMContentLoaded', function() {
+        const showDevBtn = document.getElementById('showDevDetailsBtn');
+        const mathChallengeDiv = document.getElementById('mathChallenge');
+        // ... rest of the dev details JS
+        const mathProblemEl = document.getElementById('mathProblem');
+        const mathAnswerInput = document.getElementById('mathAnswer');
+        const submitMathBtn = document.getElementById('submitMathAnswerBtn');
+        const mathFeedbackEl = document.getElementById('mathFeedback');
+        const devDetailsContent = document.getElementById('devDetailsContent');
+        let expectedMathAnswer;
+
+        if (showDevBtn) {
+            showDevBtn.addEventListener('click', function() {
+                const num1 = Math.floor(Math.random() * 10) + 1;
+                const num2 = Math.floor(Math.random() * 10) + 1;
+                expectedMathAnswer = num1 + num2;
+                if(mathProblemEl) mathProblemEl.textContent = `ছোট্ট একটা অঙ্ক: ${num1} + ${num2} = ?`;
+                
+                if(mathChallengeDiv) mathChallengeDiv.style.display = 'block';
+                if(devDetailsContent) devDetailsContent.style.display = 'none'; 
+                if(mathAnswerInput) mathAnswerInput.value = '';
+                if(mathFeedbackEl) mathFeedbackEl.textContent = '';
+                this.style.display = 'none'; 
+            });
+        }
+
+        if (submitMathBtn) {
+            submitMathBtn.addEventListener('click', function() {
+                const userAnswer = parseInt(mathAnswerInput.value, 10);
+                if (userAnswer === expectedMathAnswer) {
+                    if(mathFeedbackEl) {
+                        mathFeedbackEl.textContent = 'সাবাশ! আপনি তো গণিতে বেশ পাকা!';
+                        mathFeedbackEl.style.color = 'green';
+                    }
+                    if(devDetailsContent) devDetailsContent.classList.add('visible');
+                    if(mathChallengeDiv) mathChallengeDiv.style.display = 'none';
+                } else {
+                    if(mathFeedbackEl) {
+                        mathFeedbackEl.textContent = 'উহু, উত্তরটা ঠিক হলো না। আবার চেষ্টা করুন অথবা কফি খেয়ে আসুন!';
+                        mathFeedbackEl.style.color = 'red';
+                    }
+                    if(devDetailsContent) devDetailsContent.style.display = 'none';
+                    if(showDevBtn) showDevBtn.style.display = 'inline-block'; 
+                    if(mathChallengeDiv) mathChallengeDiv.style.display = 'none';
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

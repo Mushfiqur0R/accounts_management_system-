@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Stock OUT Form (Issue Materials){% endblock %}
+{% block page_header %}Stock OUT - Issue Materials{% endblock %}
+
+{% block content %}
+<div class="summary-card">
+    <h3>Record Outgoing Stock</h3>
+    <form method="post" action="{{ url_for('inventory_out_form') }}">
+        <div class="form-grid-2col">
+            <div>
+                <label for="transaction_date">Date:</label>
+                <input type="date" id="transaction_date" name="transaction_date" value="{{ form_data.transaction_date if form_data else default_date_form }}" required>
+            </div>
+            <div>
+                <label for="inventory_item_id">Item (Product - SubType):</label>
+                <select id="inventory_item_id" name="inventory_item_id" required onchange="updateUnit(this)">
+                    <option value="">-- Select Item --</option>
+                    {% for item_opt in inventory_item_options %}
+                    <option value="{{ item_opt.id }}" data-default-unit="{{ item_opt.default_unit }}"
+                            {% if (form_data.inventory_item_id if form_data else '')|int == item_opt.id %}selected{% endif %}>
+                        {{ item_opt.product_type }} - {{ item_opt.sub_type }} (Default: {{item_opt.default_unit}})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+             <div>
+                <label for="quantity">Quantity Issued:</label>
+                <input type="number" step="any" id="quantity" name="quantity" value="{{ form_data.quantity if form_data else '' }}" required>
+            </div>
+            <div>
+                <label for="unit">Unit for this Transaction:</label>
+                <select id="unit" name="unit" required>
+                    {% set current_unit = form_data.unit if form_data else '' %}
+                    {% for unit_opt in unit_options %}
+                    <option value="{{ unit_opt }}" {% if current_unit == unit_opt %}selected{% endif %}>{{ unit_opt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="total_price">Total Value/Price (Optional):</label> {# Price at which it's valued out #}
+                <input type="number" step="0.01" id="total_price" name="total_price" value="{{ form_data.total_price if form_data else '' }}">
+            </div>
+            <div>
+                <label for="client_name">Issued To / Client Name:</label>
+                <input type="text" id="client_name" name="client_name" value="{{ form_data.client_name if form_data else '' }}" required>
+            </div>
+        </div>
+        <div style="margin-top:10px;">
+             <label for="remarks">Remarks (Optional):</label>
+             <textarea id="remarks" name="remarks" rows="3">{{ form_data.remarks if form_data else '' }}</textarea>
+        </div>
+        <div style="margin-top: 15px;">
+            <button type="submit" class="button"><i class="fas fa-upload"></i> Record Stock OUT</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function updateUnit(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const defaultUnit = selectedOption.dataset.defaultUnit;
+    const unitDropdown = document.getElementById('unit');
+    if (defaultUnit && unitDropdown) { // Added check for unitDropdown
+        let unitFound = false;
+        for (let i = 0; i < unitDropdown.options.length; i++) {
+            if (unitDropdown.options[i].value === defaultUnit) {
+                unitDropdown.selectedIndex = i;
+                unitFound = true;
+                break;
+            }
+        }
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const itemSelect = document.getElementById('inventory_item_id');
+    if (itemSelect && itemSelect.value) { // Added check for itemSelect
+        updateUnit(itemSelect);
+    }
+});
+</script>
+{% endblock %}

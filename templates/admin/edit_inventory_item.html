@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Inventory Item{% endblock %}
+{% block page_header %}Edit Inventory Item #{{ item.id if item.id else item_id }}{% endblock %}
+
+{% block content %}
+<div class="summary-card">
+    <h3>Edit Item Definition</h3>
+    <form method="post" action="{{ url_for('edit_inventory_item', item_id=(item.id if item.id else item_id)) }}">
+        <div class="form-grid-2col">
+            <div>
+                <label for="product_type">Product Type:</label>
+                <select id="product_type" name="product_type" required>
+                    <option value="">-- Select Type --</option>
+                    {% for p_type in product_type_options %}
+                    <option value="{{ p_type }}" {% if item.product_type == p_type %}selected{% endif %}>{{ p_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="sub_type">Sub-Type / Name:</label>
+                <input type="text" id="sub_type" name="sub_type" value="{{ item.sub_type }}" placeholder="e.g., Linen, Red Dye X100" required>
+            </div>
+            <div>
+                <label for="default_unit">Default Unit:</label>
+                <select id="default_unit" name="default_unit" required>
+                    <option value="">-- Select Unit --</option>
+                    {% for unit in unit_options %}
+                    <option value="{{ unit }}" {% if item.default_unit == unit %}selected{% endif %}>{{ unit }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="description">Description (Optional):</label>
+                <input type="text" id="description" name="description" value="{{ item.description if item.description is not none else '' }}">
+            </div>
+        </div>
+        <div style="margin-top: 15px;">
+            <button type="submit" class="button"><i class="fas fa-save"></i> Update Item</button>
+            <a href="{{ url_for('manage_inventory_items') }}" class="button button-outline" style="margin-left: 10px;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

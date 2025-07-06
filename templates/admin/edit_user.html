@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User{% endblock %}
+{% block page_header %}Edit User: {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="summary-card" style="max-width: 600px; margin: 20px auto;">
+    <h3>Update User Details</h3>
+    <form method="post" action="{{ url_for('edit_user_admin', user_id=user.id) }}">
+        <div class="form-grid-2col">
+            <div>
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" value="{{ user.username }}" required>
+            </div>
+            <div>
+                <label for="is_admin">Role:</label>
+                <select id="is_admin" name="is_admin">
+                    <option value="" {% if not user.is_admin %}selected{% endif %}>Regular User</option>
+                    <option value="1" {% if user.is_admin %}selected{% endif %}>Administrator</option>
+                </select>
+            </div>
+        </div>
+        <hr style="margin: 20px 0;">
+        <h4>Change Password (Optional)</h4>
+        <p><small>Leave this field blank to keep the user's current password.</small></p>
+        <div>
+            <label for="password">New Password:</label>
+            <input type="password" id="password" name="password" placeholder="Enter new password only if you want to change it">
+        </div>
+        {# You could add a "Confirm New Password" field here for better validation #}
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="button"><i class="fas fa-save"></i> Save Changes</button>
+            <a href="{{ url_for('manage_users') }}" class="button button-outline" style="margin-left: 10px;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
