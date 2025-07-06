@@ -14,7 +14,8 @@ import os # For upload folder
 from werkzeug.utils import secure_filename
 import os
 
-DATABASE = 'database.db'
+# DATABASE = 'database.db'
+DATABASE_PATH = os.environ.get('DATABASE', 'database.db')
 
 app = Flask(__name__)
 app.secret_key = '20250' # REMEMBER TO CHANGE THIS TO A STRONG, RANDOM KEY FOR PRODUCTION
@@ -70,7 +71,8 @@ app.jinja_env.filters['datetimeformat'] = datetimeformat
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
+        # db = g._database = sqlite3.connect(DATABASE)
+        db = g._database = sqlite3.connect(DATABASE_PATH) # Use the new path variable
         db.row_factory = sqlite3.Row
     return db
 
