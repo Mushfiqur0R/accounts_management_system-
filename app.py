@@ -15,11 +15,21 @@ from werkzeug.utils import secure_filename
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 
-load_dotenv()
+# load_dotenv()
+DATA_DIR = os.environ.get('RENDER_DATA_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_data'))
+DATABASE_PATH = os.path.join(DATA_DIR, 'database.db')
+MONOGRAM_UPLOAD_FOLDER = os.path.join(DATA_DIR, 'monograms')
 
-# DATABASE = 'database.db'
-DATABASE_PATH = os.environ.get('DATABASE', 'database.db')
-load_dotenv()
+# Ensure directories exist
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+if not os.path.exists(MONOGRAM_UPLOAD_FOLDER):
+    os.makedirs(MONOGRAM_UPLOAD_FOLDER)
+
+
+DATABASE = 'database.db'
+# DATABASE_PATH = os.environ.get('DATABASE', 'database.db')
+# load_dotenv()
 
 app = Flask(__name__)
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -75,18 +85,12 @@ app.jinja_env.filters['datetimeformat'] = datetimeformat
 
 # --- Database Helper Functions ---
 def get_db():
-    # PostgreSQL connection if DATABASE_URL is set
-    if DATABASE_URL:
-        if 'db' not in g:
-            g.db = psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
-        return g.db
-    # Fallback to SQLite connection if DATABASE_URL is not set (for local development)
-    else:
-        db = getattr(g, '_database', None)
-        if db is None:
-            db = g._database = sqlite3.connect('database.db')
-            db.row_factory = sqlite3.Row
-        return db
+    db = getattr(g, '_database', None)
+    if db is None:
+        # Use the DATABASE_PATH variable to connect
+        db = g._database = sqlite3.connect(DATABASE_PATH)
+        db.row_factory = sqlite3.Row
+    return db
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -2005,9 +2009,9 @@ def store_dashboard():
                            chart_out_values=chart_out_values
                            )
 
-# if __name__ == '__main__':
-#     app.run(debug=True)
-
 if __name__ == '__main__':
-    # For local development only, Railway uses gunicorn
-    app.run(debug=False, host='0.0.0.0') 
+    app.run(debug=True)
+
+# if __name__ == '__main__':
+#     # For local development only, Railway uses gunicorn
+#     app.run(debug=False, host='0.0.0.0') 
