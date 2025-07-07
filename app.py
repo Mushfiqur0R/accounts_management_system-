@@ -15,59 +15,67 @@ from werkzeug.utils import secure_filename
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 
-# load_dotenv()
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'persistent_data')
-DATABASE_PATH = os.path.join(DATA_.exists(DATABASE_PATH):
-        print(f"Database file not found at {DATABASE_PATH}. Initializing...")
-        init_db() # Call the existing init_db function
-    else:
-        print("Database already exists. Skipping initialization.")
-
-# Call the startup initialization function within the app context
-with app.app_DIR, 'database.db')
+DATABASE_PATH = os.path.join(DATA_DIR, 'database.db')
 MONOGRAM_UPLOAD_FOLDER = os.path.join(DATA_DIR, 'monograms')
 
+# Ensure directories exist when the app starts.
+# Render might wipe empty directories on build, so this check on startup is good.
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 if not os.path.exists(MONOGRAM_UPLOAD_FOLDER):
     os.makedirs(MONOGRAM_UPLOAD_FOLDER)
 
-
-# DATABASE = 'database.db'
-# DATABASE_PATH = os.environ.get('DATABASE', 'database.db')
-# load_dotenv()
-
 app = Flask(__name__)
-DATABASE_URL = os.environ.get('DATABASE_URL')
+# Make sure a strong SECRET_KEY is set here or in environment variables
+app.secret_key = os.environ.get('SECRET_KEY', '20250')
 
+# --- Database Helper Functions ---
+# (This section from the previous response is correct and should remain)
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE_PATH)
+        db.row_factory = sqlite3.Row
+    return db
 
-app.secret_key = '20250' # REMEMBER TO CHANGE THIS TO A STRONG, RANDOM KEY FOR PRODUCTION
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
 
-def init_db_on_startup():
-    """
-    Checks if the database file exists. If not, it initializes it.
-    This runs once when the application instance starts up on Render.
-    """
-    print("Checking if database needs initialization...")
-    if not os.path.exists(DATABASE_PATH):
-        print(f"Database file not found at {DATABASE_PATH}. Initializing...")
-        init_db() # Call the existing init_db function
-    else:
-        # ফাইল থাকলেও টেবিল আছে কিনা তা নিশ্চিত করা আরও ভালো
+def init_db():
+    with app.app_context():
+        db = get_db()
+        with app.open_resource('schema.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+        db.commit()
+    print("SUCCESS: Database has been initialized with all tables.")
+
+@app.cli.command('init-db')
+def init_db_command():
+    init_db()
+
+DB_INITIALIZED = False
+
+@app.before_request
+def check_database_before_request():
+    global DB_INITIALIZED
+    if not DB_INITIALIZED:
+        print("Running first-time database check...")
         try:
-            with app.app_context():
-                db = get_db()
-                db.execute("SELECT 1 FROM users LIMIT 1").fetchone()
-                print("Database and 'users' table already exist. Skipping initialization.")
-        except (sqlite3.OperationalError, sqlite3.DatabaseError):
-            print("'users' table not found. Re-initializing database...")
-            init_db()
-
-
-# Call the startup initialization function within the app context
-with app.app_context():
-    init_db_on_startup()
-# --- END OF AUTOMATIC INITIALIZATION ---
+            db = get_db()
+            db.execute("SELECT 1 FROM users LIMIT 1").fetchone()
+            print("Database check passed. 'users' table found.")
+        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+            if "no such table" in str(e):
+                print("Tables not found. Initializing database now...")
+                init_db()
+            else:
+                print(f"An unexpected database error occurred: {e}")
+        finally:
+            DB_INITIALIZED = True
 
 
 # --- Flask-Login Setup ---
