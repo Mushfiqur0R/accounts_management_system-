@@ -1,57 +1,48 @@
-import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, g, flash, abort, Response # Added Response
+import os
+from flask import Flask, render_template, request, redirect, url_for, g, flash, abort, Response, send_from_directory
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from functools import wraps
-import io # For in-memory file handling
-import csv # For CSV generation
-from collections import defaultdict # For grouping expenses by month
-import calendar # For month names and days in month
-import pandas as pd # For CSV/Excel import
-from werkzeug.utils import secure_filename # For secure file uploads
-import os, psycopg2 # For upload folder
+import io, csv, pandas as pd
 from werkzeug.utils import secure_filename
-from psycopg2.extras import DictCursor
+from flask_sqlalchemy import SQLAlchemy  # SQLAlchemy ইমপোর্ট করুন
+from flask_migrate import Migrate      # Flask-Migrate ইমপোর্ট করুন
+from sqlalchemy.sql import func
 from dotenv import load_dotenv
+from collections import defaultdict
+import calendar
 
-# load_dotenv()
-DATA_DIR = os.environ.get('RENDER_DATA_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_data'))
-DATABASE_PATH = os.path.join(DATA_DIR, 'database.db')
-MONOGRAM_UPLOAD_FOLDER = os.path.join(DATA_DIR, 'monograms')
-
-# Ensure directories exist
-if not os.path.exists(DATA_DIR):
-    os.makedirs(DATA_DIR)
-if not os.path.exists(MONOGRAM_UPLOAD_FOLDER):
-    os.makedirs(MONOGRAM_UPLOAD_FOLDER)
-
-
-DATABASE = 'database.db'
-# DATABASE_PATH = os.environ.get('DATABASE', 'database.db')
-# load_dotenv()
+# .env ফাইল থেকে ভেরিয়েবল লোড করুন
 load_dotenv()
 
-# Railway থেকে DATABASE_URL ভেরিয়েবলটি আসবে
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
 app = Flask(__name__)
-DATABASE_URL = os.environ.get('DATABASE_URL')
 
-app.secret_key = os.environ.get('SECRET_KEY', 'default-local-secret-key') # REMEMBER TO CHANGE THIS TO A STRONG, RANDOM KEY FOR PRODUCTION
+# --- Configuration (SQLAlchemy এর জন্য) ---
+# Railway তে DATABASE_URL ব্যবহার হবে, লোকালি sqlite ব্যবহার হবে
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///local_database.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-very-strong-and-random-secret-key')
 
+# --- File Upload Configuration for Render Persistent Disk ---
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'persistent_uploads')
 MONOGRAM_UPLOAD_FOLDER = os.path.join(UPLOAD_DIR, 'monograms')
 if not os.path.exists(MONOGRAM_UPLOAD_FOLDER):
     os.makedirs(MONOGRAM_UPLOAD_FOLDER)
-# --- Flask-Login Setup ---
+
+
+# --- Initialize Extensions ---
+db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
+migrate = Migrate(app, db) # Migrate এখানে ইনিশিয়ালাইজ করুন
 login_manager.login_view = 'login'
 login_manager.login_message_category = "info"
 
 # --- User Model for Flask-Login ---
-class User(UserMixin):
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
     def __init__(self, id, username, password_hash, is_admin=False):
         self.id = id
         self.username = username
@@ -76,7 +67,7 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.get(user_id)
+    return db.session.get(User, int(user_id))
 
 # --- Jinja Custom Filter ---
 def datetimeformat(value, format_str='%Y-%m-%d %H:%M:%S'):
