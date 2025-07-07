@@ -83,64 +83,64 @@ def datetimeformat(value, format_str='%Y-%m-%d %H:%M:%S'):
 app.jinja_env.filters['datetimeformat'] = datetimeformat
 
 # --- Database Helper Functions ---
-def get_db():
-    # Railway-তে চললে PostgreSQL ব্যবহার করুন
-    if DATABASE_URL:
-        if 'db' not in g:
-            g.db = psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
-        return g.db
-    # লোকালি চললে SQLite ব্যবহার করুন
-    else:
-        db = getattr(g, '_database', None)
-        if db is None:
-            db = g._database = sqlite3.connect('database.db') # লোকাল ফাইলের নাম
-            db.row_factory = sqlite3.Row
-        return db
+# def get_db():
+#     # Railway-তে চললে PostgreSQL ব্যবহার করুন
+#     if DATABASE_URL:
+#         if 'db' not in g:
+#             g.db = psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
+#         return g.db
+#     # লোকালি চললে SQLite ব্যবহার করুন
+#     else:
+#         db = getattr(g, '_database', None)
+#         if db is None:
+#             db = g._database = sqlite3.connect('database.db') # লোকাল ফাইলের নাম
+#             db.row_factory = sqlite3.Row
+#         return db
 
-@app.teardown_appcontext
-def close_connection(exception):
-    db = g.pop('db', None) or getattr(g, '_database', None)
-    if db is not None:
-        db.close()
+# @app.teardown_appcontext
+# def close_connection(exception):
+#     db = g.pop('db', None) or getattr(g, '_database', None)
+#     if db is not None:
+#         db.close()
 
 
-def init_db():
-    with app.app_context():
-        db = get_db()
-        with app.open_resource('schema.sql', mode='r') as f:
-            db.cursor().executescript(f.read())
-        db.commit()
-    print("Initialized the database.")
+# def init_db():
+#     with app.app_context():
+#         db = get_db()
+#         with app.open_resource('schema.sql', mode='r') as f:
+#             db.cursor().executescript(f.read())
+#         db.commit()
+#     print("Initialized the database.")
 
 @app.cli.command('init-db')
 def init_db_command():
     init_db()
 
-def query_db(query, args=(), one=False):
-    db = get_db()
-    cur = db.cursor()
+# def query_db(query, args=(), one=False):
+#     db = get_db()
+#     cur = db.cursor()
     
-    # কানেকশন টাইপ চেক করে প্লেসহোল্ডার পরিবর্তন করুন
-    # psycopg2 কানেকশনের একটি 'dsn' অ্যাট্রিবিউট থাকে, যা sqlite3 কানেকশনে থাকে না
-    if hasattr(db, 'dsn'): # এটি PostgreSQL কানেকশন কিনা তা পরীক্ষা করার একটি সহজ উপায়
-        query = query.replace('?', '%s')
+#     # কানেকশন টাইপ চেক করে প্লেসহোল্ডার পরিবর্তন করুন
+#     # psycopg2 কানেকশনের একটি 'dsn' অ্যাট্রিবিউট থাকে, যা sqlite3 কানেকশনে থাকে না
+#     if hasattr(db, 'dsn'): # এটি PostgreSQL কানেকশন কিনা তা পরীক্ষা করার একটি সহজ উপায়
+#         query = query.replace('?', '%s')
         
-    cur.execute(query, args)
-    rv = cur.fetchall()
-    cur.close()
-    # DictCursor এবং sqlite3.Row দুটোই ডিকশনারির মতো অ্যাক্সেস সমর্থন করে (row['column'])
-    return (rv[0] if rv else None) if one else rv
+#     cur.execute(query, args)
+#     rv = cur.fetchall()
+#     cur.close()
+#     # DictCursor এবং sqlite3.Row দুটোই ডিকশনারির মতো অ্যাক্সেস সমর্থন করে (row['column'])
+#     return (rv[0] if rv else None) if one else rv
 
-def execute_db(query, args=()):
-    db = get_db()
-    cur = db.cursor()
+# def execute_db(query, args=()):
+#     db = get_db()
+#     cur = db.cursor()
     
-    if hasattr(db, 'dsn'): # PostgreSQL কানেকশন
-        query = query.replace('?', '%s')
+#     if hasattr(db, 'dsn'): # PostgreSQL কানেকশন
+#         query = query.replace('?', '%s')
             
-    cur.execute(query, args)
-    db.commit()
-    cur.close()
+#     cur.execute(query, args)
+#     db.commit()
+#     cur.close()
 
 # --- Company Details Helper ---
 def get_company_details():
@@ -223,35 +223,59 @@ def register():
     
     return render_template('register.html', registration_allowed=registration_allowed)
 
+# @app.route('/login', methods=['GET', 'POST'])
+# def login():
+#     if current_user.is_authenticated:
+#         return redirect(url_for('index'))
+
+#     # Determine if public registration is allowed (for dynamic link on login page)
+#     user_count_result = query_db("SELECT COUNT(id) as count FROM users", one=True)
+#     user_count = user_count_result['count'] if user_count_result else 0 # Handle case of no users table yet or error
+#     registration_allowed = (user_count == 0) # Public registration is allowed only if no users exist
+
+#     if request.method == 'POST':
+#         username = request.form['username']
+#         password = request.form['password']
+#         remember = True if request.form.get('remember') else False
+#         user = User.get_by_username(username)
+
+#         if not user or not check_password_hash(user.password_hash, password):
+#             flash('Invalid username or password.', 'error')
+#             # Pass username back to pre-fill the form and registration_allowed status
+#             return render_template('login.html', username=username, registration_allowed=registration_allowed)
+#         else:
+#             login_user(user, remember=remember)
+#             flash('Logged in successfully!', 'success')
+#             next_page = request.args.get('next')
+#             return redirect(next_page or url_for('index'))
+    
+#     # For GET request
+#     return render_template('login.html', registration_allowed=registration_allowed)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
-    # Determine if public registration is allowed (for dynamic link on login page)
-    user_count_result = query_db("SELECT COUNT(id) as count FROM users", one=True)
-    user_count = user_count_result['count'] if user_count_result else 0 # Handle case of no users table yet or error
-    registration_allowed = (user_count == 0) # Public registration is allowed only if no users exist
+    # SQLAlchemy ব্যবহার করে user count করা
+    user_count = db.session.query(func.count(User.id)).scalar()
+    registration_allowed = (user_count == 0)
 
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        remember = True if request.form.get('remember') else False
-        user = User.get_by_username(username)
+        
+        # SQLAlchemy ব্যবহার করে user খোঁজা
+        user = User.query.filter_by(username=username).first()
 
         if not user or not check_password_hash(user.password_hash, password):
             flash('Invalid username or password.', 'error')
-            # Pass username back to pre-fill the form and registration_allowed status
-            return render_template('login.html', username=username, registration_allowed=registration_allowed)
         else:
-            login_user(user, remember=remember)
+            login_user(user, remember=True)
             flash('Logged in successfully!', 'success')
             next_page = request.args.get('next')
             return redirect(next_page or url_for('index'))
     
-    # For GET request
     return render_template('login.html', registration_allowed=registration_allowed)
-
 
 @app.route('/logout')
 @login_required
