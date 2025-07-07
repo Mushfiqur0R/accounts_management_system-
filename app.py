@@ -15,69 +15,35 @@ from werkzeug.utils import secure_filename
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'persistent_data')
+# load_dotenv()
+DATA_DIR = os.environ.get('RENDER_DATA_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_data'))
 DATABASE_PATH = os.path.join(DATA_DIR, 'database.db')
 MONOGRAM_UPLOAD_FOLDER = os.path.join(DATA_DIR, 'monograms')
 
-# Ensure directories exist when the app starts.
-# Render might wipe empty directories on build, so this check on startup is good.
+# Ensure directories exist
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 if not os.path.exists(MONOGRAM_UPLOAD_FOLDER):
     os.makedirs(MONOGRAM_UPLOAD_FOLDER)
 
+
+DATABASE = 'database.db'
+# DATABASE_PATH = os.environ.get('DATABASE', 'database.db')
+# load_dotenv()
+load_dotenv()
+
+# Railway থেকে DATABASE_URL ভেরিয়েবলটি আসবে
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
 app = Flask(__name__)
-# Make sure a strong SECRET_KEY is set here or in environment variables
-app.secret_key = os.environ.get('SECRET_KEY', '20250')
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# --- Database Helper Functions ---
-# (This section from the previous response is correct and should remain)
-def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        db = g._database = sqlite3.connect(DATABASE_PATH)
-        db.row_factory = sqlite3.Row
-    return db
+app.secret_key = os.environ.get('SECRET_KEY', 'default-local-secret-key') # REMEMBER TO CHANGE THIS TO A STRONG, RANDOM KEY FOR PRODUCTION
 
-@app.teardown_appcontext
-def close_connection(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
-
-def init_db():
-    with app.app_context():
-        db = get_db()
-        with app.open_resource('schema.sql', mode='r') as f:
-            db.cursor().executescript(f.read())
-        db.commit()
-    print("SUCCESS: Database has been initialized with all tables.")
-
-@app.cli.command('init-db')
-def init_db_command():
-    init_db()
-
-DB_INITIALIZED = False
-
-@app.before_request
-def check_database_before_request():
-    global DB_INITIALIZED
-    if not DB_INITIALIZED:
-        print("Running first-time database check...")
-        try:
-            db = get_db()
-            db.execute("SELECT 1 FROM users LIMIT 1").fetchone()
-            print("Database check passed. 'users' table found.")
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            if "no such table" in str(e):
-                print("Tables not found. Initializing database now...")
-                init_db()
-            else:
-                print(f"An unexpected database error occurred: {e}")
-        finally:
-            DB_INITIALIZED = True
-
-
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'persistent_uploads')
+MONOGRAM_UPLOAD_FOLDER = os.path.join(UPLOAD_DIR, 'monograms')
+if not os.path.exists(MONOGRAM_UPLOAD_FOLDER):
+    os.makedirs(MONOGRAM_UPLOAD_FOLDER)
 # --- Flask-Login Setup ---
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -127,22 +93,28 @@ app.jinja_env.filters['datetimeformat'] = datetimeformat
 
 # --- Database Helper Functions ---
 def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        # Use the DATABASE_PATH variable to connect
-        db = g._database = sqlite3.connect(DATABASE_PATH)
-        db.row_factory = sqlite3.Row
-    return db
+    # Railway-তে চললে PostgreSQL ব্যবহার করুন
+    if DATABASE_URL:
+        if 'db' not in g:
+            g.db = psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
+        return g.db
+    # লোকালি চললে SQLite ব্যবহার করুন
+    else:
+        db = getattr(g, '_database', None)
+        if db is None:
+            db = g._database = sqlite3.connect('database.db') # লোকাল ফাইলের নাম
+            db.row_factory = sqlite3.Row
+        return db
 
 @app.teardown_appcontext
 def close_connection(exception):
-    db = getattr(g, '_database', None)
+    db = g.pop('db', None) or getattr(g, '_database', None)
     if db is not None:
         db.close()
 
+
 def init_db():
     with app.app_context():
-        
         db = get_db()
         with app.open_resource('schema.sql', mode='r') as f:
             db.cursor().executescript(f.read())
@@ -157,39 +129,27 @@ def query_db(query, args=(), one=False):
     db = get_db()
     cur = db.cursor()
     
-    # PostgreSQL uses %s, SQLite uses ?
-    if DATABASE_URL:
+    # কানেকশন টাইপ চেক করে প্লেসহোল্ডার পরিবর্তন করুন
+    # psycopg2 কানেকশনের একটি 'dsn' অ্যাট্রিবিউট থাকে, যা sqlite3 কানেকশনে থাকে না
+    if hasattr(db, 'dsn'): # এটি PostgreSQL কানেকশন কিনা তা পরীক্ষা করার একটি সহজ উপায়
         query = query.replace('?', '%s')
-    
+        
     cur.execute(query, args)
     rv = cur.fetchall()
     cur.close()
+    # DictCursor এবং sqlite3.Row দুটোই ডিকশনারির মতো অ্যাক্সেস সমর্থন করে (row['column'])
     return (rv[0] if rv else None) if one else rv
 
 def execute_db(query, args=()):
     db = get_db()
     cur = db.cursor()
     
-    if DATABASE_URL:
+    if hasattr(db, 'dsn'): # PostgreSQL কানেকশন
         query = query.replace('?', '%s')
-        
+            
     cur.execute(query, args)
     db.commit()
-    
-    last_id = None
-    # Getting last inserted ID is different in PostgreSQL
-    if DATABASE_URL and "INSERT" in query.upper():
-        # This is a simple approach, works if your table has an 'id' primary key
-        # and the query returns the id. A more robust way needs RETURNING id.
-        # Let's adjust the query slightly for this.
-        # For now, we'll skip getting last_id for PG to avoid complexity.
-        # If you need last_id, the INSERT queries need to be changed to "INSERT ... RETURNING id"
-        pass
-    elif not DATABASE_URL:
-         last_id = cur.lastrowid
-         
     cur.close()
-    return last_id
 
 # --- Company Details Helper ---
 def get_company_details():
