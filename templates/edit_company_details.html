@@ -27,7 +27,7 @@
         {% if company_info and company_info.monogram_path and company_info.monogram_path != "" %}
         <div style="margin-bottom: 15px;">
             <label>Current Monogram/Logo:</label>
-            <img src="{{ url_for('static', filename=company_info.monogram_path) }}" alt="Current Monogram" style="max-height: 80px; max-width: 200px; border: 1px solid #ddd; padding: 5px; display:block; margin-top:5px;">
+            <img src="{{ url_for('uploaded_monogram', filename=company_info.monogram_path) }}" alt="Current Monogram" style="max-height: 80px; max-width: 200px; border: 1px solid #ddd; padding: 5px; display:block; margin-top:5px;">
         </div>
         {% else %}
         <div style="margin-bottom: 10px;">

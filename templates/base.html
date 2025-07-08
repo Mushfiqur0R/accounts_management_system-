@@ -14,7 +14,7 @@
             <div class="sidebar-header">
                 <div class="logo-container-sidebar">
                     {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
-                        <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Monogram" class="sidebar-monogram">
+                        <img src="{{ url_for('uploaded_monogram', filename=company_details.monogram_path) }}" alt="Monogram" class="sidebar-monogram">
                     {% endif %}
                     <h3>{% if company_details %}{{ company_details.company_name }}{% else %}AMS{% endif %}</h3>
                 </div>
@@ -102,7 +102,7 @@
                 </button>
                 <div class="header-app-info">
                     {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
-                        {# <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Monogram" class="header-main-monogram"> #}
+                        {# <img src="{{ url_for('uploaded_monogram', filename=company_details.monogram_path) }}" alt="Monogram" class="header-main-monogram"> #}
                     {% endif %}
                     <span class="header-app-name">{% if company_details and company_details.company_name %}{{ company_details.company_name }}{% else %}Accounts Management{% endif %}</span>
                 </div>

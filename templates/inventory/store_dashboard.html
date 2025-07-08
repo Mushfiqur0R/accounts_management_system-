@@ -170,7 +170,7 @@
 
 <div class="print-header">
      {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
-        <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Monogram" class="monogram">
+        <img src="{{ url_for('uploaded_monogram', filename=company_details.monogram_path) }}" alt="Monogram" class="monogram">
     {% endif %}
     <h2>{{ company_details.company_name if company_details and company_details.company_name else "Company Name" }}</h2>
     {# Ensure address and contact are included #}

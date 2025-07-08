@@ -5,7 +5,7 @@
 {% block content %}
 <div class="auth-card">
     {% if company_details and company_details.monogram_path and company_details.monogram_path != "" %}
-        <img src="{{ url_for('static', filename=company_details.monogram_path) }}" alt="Logo" class="auth-logo">
+        <img src="{{ url_for('uploaded_monogram', filename=company_details.monogram_path) }}" alt="Logo" class="auth-logo">
     {% endif %}
     <h2 class="app-title-auth">{% if company_details and company_details.company_name %}{{ company_details.company_name }}{% else %}Trims Mart{% endif %}</h2>
     <p class="app-subtitle-auth">Accounts & Inventory Management</p>
