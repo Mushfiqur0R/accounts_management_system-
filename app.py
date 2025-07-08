@@ -30,8 +30,14 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-very-strong-and-rando
 # --- File Upload Configuration ---
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'persistent_uploads')
 MONOGRAM_UPLOAD_FOLDER = os.path.join(UPLOAD_DIR, 'monograms')
-if not os.path.exists(MONOGRAM_UPLOAD_FOLDER):
-    os.makedirs(MONOGRAM_UPLOAD_FOLDER)
+TRANSACTION_UPLOAD_FOLDER = os.path.join(UPLOAD_DIR, 'csv_imports')
+
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+ALLOWED_CSV_EXTENSIONS = {'csv'}
+
+for folder in [MONOGRAM_UPLOAD_FOLDER, TRANSACTION_UPLOAD_FOLDER]:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
 # --- Initialize Extensions ---
 db = SQLAlchemy(app)
