@@ -1,8 +1,8 @@
-"""Initial migration using SQLAlchemy models.
+"""Final SQLAlchemy setup for all models.
 
-Revision ID: a64db989c400
+Revision ID: 41ac630fb9b8
 Revises: 
-Create Date: 2025-07-08 06:15:43.102230
+Create Date: 2025-07-08 08:13:45.478725
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'a64db989c400'
+revision = '41ac630fb9b8'
 down_revision = None
 branch_labels = None
 depends_on = None
