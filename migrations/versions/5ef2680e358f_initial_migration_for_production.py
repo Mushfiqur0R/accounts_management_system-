@@ -1,8 +1,8 @@
-"""Final SQLAlchemy setup for all models.
+"""Initial migration for production
 
-Revision ID: 41ac630fb9b8
+Revision ID: 5ef2680e358f
 Revises: 
-Create Date: 2025-07-08 08:13:45.478725
+Create Date: 2025-07-08 08:44:19.007701
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '41ac630fb9b8'
+revision = '5ef2680e358f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -75,6 +75,8 @@ def upgrade():
     sa.Column('transaction_date', sa.Date(), nullable=False),
     sa.Column('transaction_type', sa.String(length=10), nullable=False),
     sa.Column('inventory_item_id', sa.Integer(), nullable=False),
+    sa.Column('product_type', sa.String(length=100), nullable=False),
+    sa.Column('sub_type', sa.String(length=150), nullable=False),
     sa.Column('quantity', sa.Float(), nullable=False),
     sa.Column('unit', sa.String(length=50), nullable=False),
     sa.Column('total_price', sa.Float(), nullable=True),
