@@ -1,9 +1,26 @@
-import logging
+import os
 from logging.config import fileConfig
 
-from flask import current_app
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
 
 from alembic import context
+
+# --- এই অংশটি যোগ করা হয়েছে ---
+# এটি আপনার app.py থেকে মডেলগুলো ইমপোর্ট করবে যাতে autogenerate কাজ করে
+import sys
+from dotenv import load_dotenv
+
+# আপনার প্রোজেক্টের রুট ডিরেক্টরিকে পাথে যোগ করুন
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+load_dotenv() # .env ফাইল থেকে ভেরিয়েবল লোড করে
+
+# আপনার app.py থেকে db এবং মডেলগুলো ইমপোর্ট করুন
+# নিশ্চিত করুন আপনার app.py ফাইলে db = SQLAlchemy(app) এবং মডেল ক্লাসগুলো সংজ্ঞায়িত আছে
+from app import db 
+# from app import User, Client, Transaction # উদাহরণ - সব মডেল ইমপোর্ট করার প্রয়োজন নেই, শুধু db.metadata দরকার
+
+# --- পরিবর্তন শেষ ---
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -11,33 +28,21 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)
-logger = logging.getLogger('alembic.env')
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
-
-def get_engine():
-    try:
-        # this works with Flask-SQLAlchemy<3 and Alchemical
-        return current_app.extensions['migrate'].db.get_engine()
-    except (TypeError, AttributeError):
-        # this works with Flask-SQLAlchemy>=3
-        return current_app.extensions['migrate'].db.engine
-
-
-def get_engine_url():
-    try:
-        return get_engine().url.render_as_string(hide_password=False).replace(
-            '%', '%%')
-    except AttributeError:
-        return str(get_engine().url).replace('%', '%%')
-
+# --- এই অংশটি পরিবর্তন করা হয়েছে ---
+# sqlalchemy.url সরাসরি এনভায়রনমেন্ট ভেরিয়েবল থেকে সেট করুন
+# এটি Railway-এর DATABASE_URL এবং লোকাল .env ফাইল দুটোকেই সমর্থন করবে
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///local_database.db')
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+config.set_main_option('sqlalchemy.url', db_url)
+# --- পরিবর্তন শেষ ---
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-config.set_main_option('sqlalchemy.url', get_engine_url())
-target_db = current_app.extensions['migrate'].db
+target_metadata = db.metadata # আপনার app.py-এর db অবজেক্টের মেটাডেটা ব্যবহার করুন
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -45,13 +50,7 @@ target_db = current_app.extensions['migrate'].db
 # ... etc.
 
 
-def get_metadata():
-    if hasattr(target_db, 'metadatas'):
-        return target_db.metadatas[None]
-    return target_db.metadata
-
-
-def run_migrations_offline():
+def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
     This configures the context with just a URL
@@ -65,42 +64,32 @@ def run_migrations_offline():
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
 
-def run_migrations_online():
+def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
 
     """
-
-    # this callback is used to prevent an auto-migration from being generated
-    # when there are no changes to the schema
-    # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
-    def process_revision_directives(context, revision, directives):
-        if getattr(config.cmd_opts, 'autogenerate', False):
-            script = directives[0]
-            if script.upgrade_ops.is_empty():
-                directives[:] = []
-                logger.info('No changes in schema detected.')
-
-    conf_args = current_app.extensions['migrate'].configure_args
-    if conf_args.get("process_revision_directives") is None:
-        conf_args["process_revision_directives"] = process_revision_directives
-
-    connectable = get_engine()
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection,
-            target_metadata=get_metadata(),
-            **conf_args
+            connection=connection, target_metadata=target_metadata
         )
 
         with context.begin_transaction():
