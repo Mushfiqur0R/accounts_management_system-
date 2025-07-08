@@ -239,11 +239,9 @@ def index():
     clients_with_balances = db.session.query(
         Client.id, Client.name, Client.contact_number,
         (func.coalesce(func.sum(Transaction.debit), 0) - func.coalesce(func.sum(Transaction.credit), 0)).label('balance')
-    ).outerjoin(Transaction, Client.id == Transaction.client_id).group_by(Client.id).order_by(db.desc('balance')).all()
+    ).outerjoin(Transaction).group_by(Client.id).order_by(db.desc('balance')).all()
     
     total_receivables = sum(client.balance for client in clients_with_balances)
-
-    # --- Chart Data: Top 5 Clients by Balance ---
     top_clients_data = sorted([c for c in clients_with_balances if c.balance > 0], key=lambda x: x.balance, reverse=True)[:5]
     top_clients_labels = [client.name for client in top_clients_data]
     top_clients_values = [client.balance for client in top_clients_data]
@@ -251,7 +249,6 @@ def index():
     # --- Chart Data: Monthly Conveyance Expenses (Last 6 Months) ---
     today = datetime.today()
     monthly_expenses_labels = []
-    monthly_expenses_values = []
     expenses_by_month = defaultdict(float)
     
     for i in range(5, -1, -1):
@@ -263,14 +260,22 @@ def index():
 
     six_months_ago = (today - relativedelta(months=5)).replace(day=1)
     
+    # --- এই কোয়েরিটি পরিবর্তন করা হয়েছে ---
+    # PostgreSQL-এর জন্য func.to_char এবং SQLite-এর জন্য func.strftime ব্যবহার করা
+    db_engine_name = db.engine.name
+    if db_engine_name == 'postgresql':
+        month_year_func = func.to_char(ConveyanceBill.bill_date, 'YYYY-MM')
+    else: # Fallback to SQLite
+        month_year_func = func.strftime('%Y-%m', ConveyanceBill.bill_date)
+        
     conveyance_expenses_query = db.session.query(
-        func.strftime('%Y-%m', ConveyanceBill.bill_date).label('month_year'),
+        month_year_func.label('month_year'),
         func.sum(ConveyanceBill.amount).label('total_amount')
     ).filter(ConveyanceBill.bill_date >= six_months_ago).group_by('month_year').all()
 
     for expense_entry in conveyance_expenses_query:
         if expense_entry.month_year in expenses_by_month:
-            expenses_by_month[expense_entry.month_year] = expense_entry.total_amount
+            expenses_by_month[expense_entry.month_year] = float(expense_entry.total_amount) # Ensure float
     
     monthly_expenses_values = [expenses_by_month[key] for key in sorted(expenses_by_month.keys())]
 
@@ -279,15 +284,13 @@ def index():
         .join(Client, Client.id == Transaction.client_id)\
         .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())\
         .limit(5).all()
-    
-    # Process recent_transactions to be a list of dicts/objects that template expects
-    recent_transactions_list = [{**trx[0].__dict__, 'client_name': trx.client_name} for trx in recent_transactions]
+    recent_transactions_list = [{'id': trx.id, 'transaction_date': trx.transaction_date, 'client_id': trx.client_id, 'client_name': name, 'narration': trx.narration, 'debit': trx.debit, 'credit': trx.credit} for trx, name in recent_transactions]
     
     # --- Conveyance Expenses for current month display card ---
     current_month_start = today.replace(day=1)
     current_month_conveyance_total = db.session.query(func.sum(ConveyanceBill.amount))\
         .filter(ConveyanceBill.bill_date >= current_month_start).scalar() or 0.0
-
+    
     # --- Recent Conveyance Bills ---
     recent_conveyance_bills = ConveyanceBill.query.order_by(ConveyanceBill.bill_date.desc(), ConveyanceBill.id.desc()).limit(5).all()
 
@@ -501,26 +504,29 @@ def delete_transaction(transaction_id):
 @app.route('/reports/monthly_client_summary', methods=['GET'])
 @login_required
 def monthly_client_summary_report():
-    filter_year = request.args.get('filter_year', '')
-    filter_month = request.args.get('filter_month', '')
+    filter_year, filter_month = request.args.get('filter_year', ''), request.args.get('filter_month', '')
+    
+    db_engine_name = db.engine.name
+    if db_engine_name == 'postgresql':
+        year_func = extract('year', Transaction.transaction_date)
+        month_func = extract('month', Transaction.transaction_date)
+    else: # SQLite
+        year_func = func.strftime('%Y', Transaction.transaction_date)
+        month_func = func.strftime('%m', Transaction.transaction_date)
 
     query = db.session.query(
-        Client.id.label('client_id'),
-        Client.name.label('client_name'),
-        extract('year', Transaction.transaction_date).label('year'),
-        extract('month', Transaction.transaction_date).label('month'),
+        Client.id.label('client_id'), Client.name.label('client_name'),
+        year_func.label('year'),
+        month_func.label('month'),
         func.sum(Transaction.debit).label('total_debit'),
         func.sum(Transaction.credit).label('total_credit'),
         (func.coalesce(func.sum(Transaction.debit), 0) - func.coalesce(func.sum(Transaction.credit), 0)).label('net_change')
-    ).join(Client, Client.id == Transaction.client_id)
+    ).join(Client)
 
-    if filter_year:
-        query = query.filter(extract('year', Transaction.transaction_date) == int(filter_year))
-    if filter_month:
-        query = query.filter(extract('month', Transaction.transaction_date) == int(filter_month))
-
-    summary_data = query.group_by('client_id', 'client_name', 'year', 'month')\
-                        .order_by(db.desc('year'), db.desc('month'), 'client_name').all()
+    if filter_year: query = query.filter(year_func == int(filter_year))
+    if filter_month: query = query.filter(month_func == int(filter_month))
+    
+    summary_data = query.group_by(Client.id, 'year', 'month').order_by(db.desc('year'), db.desc('month'), Client.name).all()
 
     distinct_years_rows = db.session.query(extract('year', Transaction.transaction_date).label('year')).distinct().order_by(db.desc('year')).all()
     distinct_years = [row.year for row in distinct_years_rows]
